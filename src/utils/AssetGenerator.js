@@ -267,9 +267,9 @@ export function generateAssets(scene) {
   } // end: !shadow_idle check
 
   // ══════════════════════════════════════════════════════════════════════════
-  // GEMMA — Golden Retriever puppy (side profile, facing left toward Shadow)
-  // Canvas: 72 × 64
+  // GEMMA — real images loaded in BootScene; procedural fallback only
   // ══════════════════════════════════════════════════════════════════════════
+  if (!scene.textures.exists('gemma_idle')) {
   g.clear();
   {
     const GBODY  = 0x9a6020;
@@ -339,7 +339,9 @@ export function generateAssets(scene) {
     g.fillEllipse(18, 72, 12, 5); g.fillEllipse(29, 70, 11, 5);
     g.fillEllipse(46, 72, 12, 5); g.fillEllipse(57, 70, 11, 5);
   }
-  g.generateTexture('gemma', 72, 74);
+  g.generateTexture('gemma_idle',  72, 74);
+  g.generateTexture('gemma_happy', 72, 74); // same procedural fallback for both
+  } // end: !gemma_idle check
 
   // ══════════════════════════════════════════════════════════════════════════
   // SNAKE (side view, S-curve body)
@@ -425,6 +427,51 @@ export function generateAssets(scene) {
   g.fillStyle(0xd8aa18, 1); g.fillRect(27, 12, 4, 6); g.fillRect(31, 12, 4, 5);
   g.fillStyle(0x180c00, 1); g.fillCircle(9, 9, 4);
   g.generateTexture('key', 36, 20);
+
+  // OIL BARREL (road obstacle)
+  if (!scene.textures.exists('barrel')) {
+    g.clear();
+    g.fillStyle(0x3a2808, 1); g.fillRect(2, 8, 28, 26);
+    g.fillStyle(0x4e3410, 1); g.fillEllipse(16, 8, 32, 12);
+    g.fillStyle(0x2a1c04, 1); g.fillEllipse(16, 34, 32, 12);
+    g.fillStyle(0x888888, 1); g.fillRect(0, 16, 32, 3); g.fillRect(0, 24, 32, 3);
+    g.fillStyle(0x6a4820, 0.5); g.fillRect(5, 10, 5, 20);
+    g.generateTexture('barrel', 32, 40);
+  }
+
+  // ROAD BARRIER — orange/white construction A-frame (road obstacle)
+  if (!scene.textures.exists('road_barrier')) {
+    g.clear();
+    g.fillStyle(0xffffff, 1); g.fillRoundedRect(0, 4, 58, 22, 3);
+    g.fillStyle(0xff6600, 1);
+    g.fillRoundedRect(0, 4, 58, 8, 3);
+    g.fillRoundedRect(0, 18, 58, 8, 3);
+    g.lineStyle(1.5, 0x333333, 0.7); g.strokeRoundedRect(0, 4, 58, 22, 3);
+    g.fillStyle(0x555555, 1);
+    g.fillTriangle(6, 26, 0, 40, 12, 40);
+    g.fillTriangle(52, 26, 46, 40, 58, 40);
+    g.generateTexture('road_barrier', 58, 40);
+  }
+
+  // TRAFFIC CONE
+  if (!scene.textures.exists('cone')) {
+    g.clear();
+    g.fillStyle(0xff6200, 1); g.fillTriangle(12, 0, 0, 30, 24, 30);
+    g.fillStyle(0xffffff, 0.9); g.fillRect(3, 17, 18, 4); g.fillRect(5, 10, 14, 3);
+    g.fillStyle(0xcc4400, 0.35); g.fillTriangle(12, 3, 6, 17, 18, 17);
+    g.fillStyle(0x777777, 1); g.fillRect(0, 30, 24, 5);
+    g.generateTexture('cone', 24, 35);
+  }
+
+  // SPIKE
+  if (!scene.textures.exists('spike')) {
+    g.clear();
+    g.fillStyle(0x999999, 1);
+    for (let i = 0; i < 4; i++) g.fillTriangle(i * 14, 28, i * 14 + 7, 0, i * 14 + 14, 28);
+    g.fillStyle(0xcccccc, 0.55);
+    for (let i = 0; i < 4; i++) g.fillTriangle(i * 14 + 2, 26, i * 14 + 7, 4, i * 14 + 9, 14);
+    g.generateTexture('spike', 56, 28);
+  }
 
   // CAGE
   g.clear();

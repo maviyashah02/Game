@@ -8,6 +8,7 @@ export class BaseLevelScene extends Phaser.Scene {
     this._isDying      = false;
     this._levelDone    = false;
     this._damageCD     = false;
+    this._puzzleActive = false;
     this._checkpointX  = config.startX || 80;
     this._checkpointY  = config.startY || 390;
     this.cameras.main.setBackgroundColor('#0d0806');
@@ -55,13 +56,12 @@ export class BaseLevelScene extends Phaser.Scene {
       });
     }
 
-    this.shadow = this.physics.add.sprite(config.startX || 80, config.startY || 390, 'shadow_idle');
+    const char    = config.character || 'shadow';
+    const idleKey = char === 'gleeda' ? 'gleeda_idle' : 'shadow_idle';
+    this.shadow   = this.physics.add.sprite(config.startX || 80, config.startY || 390, idleKey);
 
-    // Images are 677×369 px after background removal — scale to ~122×66px display
+    // Both characters: setScale(0.18) → 122×66px world size; body = 73×56px
     this.shadow.setScale(0.18);
-
-    // Body: 60% of image width × 85% of height, CENTERED on sprite.
-    // Works regardless of exact image dimensions.
     const tw = this.shadow.texture.source[0].width;
     const th = this.shadow.texture.source[0].height;
     this.shadow.body.setSize(tw * 0.60, th * 0.85, true);
@@ -70,10 +70,22 @@ export class BaseLevelScene extends Phaser.Scene {
     this.shadow.setDepth(10);
     this._onGround = false;
 
-    if (!this.anims.exists('shadow_walk')) {
-      this.anims.create({ key: 'shadow_walk',      frames: [{ key: 'shadow_run1' }, { key: 'shadow_run2' }], frameRate: 6, repeat: -1 });
-      this.anims.create({ key: 'shadow_idle_anim', frames: [{ key: 'shadow_idle' }],                         frameRate: 1, repeat: -1 });
-      this.anims.create({ key: 'shadow_jump_anim', frames: [{ key: 'shadow_jump' }],                         frameRate: 1, repeat: -1 });
+    this._walkAnim = char === 'gleeda' ? 'gleeda_walk'      : 'shadow_walk';
+    this._idleAnim = char === 'gleeda' ? 'gleeda_idle_anim' : 'shadow_idle_anim';
+    this._jumpAnim = char === 'gleeda' ? 'gleeda_jump_anim' : 'shadow_jump_anim';
+
+    if (char === 'gleeda') {
+      if (!this.anims.exists('gleeda_walk')) {
+        this.anims.create({ key: 'gleeda_walk',      frames: [{ key: 'gleeda_run1' }], frameRate: 6, repeat: -1 });
+        this.anims.create({ key: 'gleeda_idle_anim', frames: [{ key: 'gleeda_idle' }], frameRate: 1, repeat: -1 });
+        this.anims.create({ key: 'gleeda_jump_anim', frames: [{ key: 'gleeda_jump' }], frameRate: 1, repeat: -1 });
+      }
+    } else {
+      if (!this.anims.exists('shadow_walk')) {
+        this.anims.create({ key: 'shadow_walk',      frames: [{ key: 'shadow_run1' }, { key: 'shadow_run2' }], frameRate: 6, repeat: -1 });
+        this.anims.create({ key: 'shadow_idle_anim', frames: [{ key: 'shadow_idle' }],                         frameRate: 1, repeat: -1 });
+        this.anims.create({ key: 'shadow_jump_anim', frames: [{ key: 'shadow_jump' }],                         frameRate: 1, repeat: -1 });
+      }
     }
 
     this.cameras.main.startFollow(this.shadow, true, 0.08, 0.08);
@@ -97,6 +109,21 @@ export class BaseLevelScene extends Phaser.Scene {
     this._buildHUD(config);
 
     this.time.addEvent({ delay: 600, callback: this._spawnLeaf, callbackScope: this, loop: true });
+
+    // Register this scene so the HTML bark button can reach _doBark()
+    window._currentLevel = this;
+
+    // Show the footer controls only during gameplay
+    const footer = document.getElementById('game-footer');
+    if (footer) footer.style.display = 'flex';
+    this.events.once('shutdown', () => {
+      if (window._currentLevel === this) window._currentLevel = null;
+      const f = document.getElementById('game-footer');
+      if (f) f.style.display = 'none';
+      // Always hide attack button when leaving any level
+      const atk = document.getElementById('btn-attack');
+      if (atk) atk.style.display = 'none';
+    });
 
     // atmospheric mist overlay (fixed to camera)
     this._fogLayer = this.add.tileSprite(400, 400, 800, 80, 'fog')
@@ -235,12 +262,25 @@ export class BaseLevelScene extends Phaser.Scene {
     // Load lives from registry so they persist across levels; reset to 3 only on fresh game
     const savedLives = this.registry.get('lives');
     this._lives = (savedLives !== null && savedLives !== undefined) ? savedLives : 3;
+    // Dark panel behind lives + HP pips
+    const hudPanelG = this.add.graphics().setScrollFactor(0).setDepth(28);
+    hudPanelG.fillStyle(0x1a0904, 0.72);
+    hudPanelG.fillRoundedRect(4, 4, 94, 50, 7);
+    hudPanelG.lineStyle(1, 0x5a3010, 0.6);
+    hudPanelG.strokeRoundedRect(4, 4, 94, 50, 7);
+
     this._hearts = [];
     for (let i = 0; i < 3; i++) {
-      const h = this.add.image(20 + i * 26, 22, 'heart').setScale(0.8).setScrollFactor(0).setDepth(30);
+      const h = this.add.image(19 + i * 27, 19, 'heart').setScale(0.8).setScrollFactor(0).setDepth(30);
       if (i >= this._lives) { h.setTint(0x444444); h.setAlpha(0.25); }
       this._hearts.push(h);
     }
+
+    // HP pips: 3 coloured graphical rectangles (green=3, yellow=2, red=1)
+    const savedHP = this.registry.get('shadowHP');
+    this._shadowHP = (savedHP !== null && savedHP !== undefined) ? savedHP : 3;
+    this._hpGraphics = this.add.graphics().setScrollFactor(0).setDepth(30);
+    this._drawHPPips();
 
     this.add.rectangle(W / 2, H - 12, 200, 8, 0x2a1a0a, 0.8).setScrollFactor(0).setDepth(30);
     this._progressBar = this.add.rectangle(W / 2 - 100, H - 12, 0, 8, 0xf5c87a, 1)
@@ -250,8 +290,8 @@ export class BaseLevelScene extends Phaser.Scene {
     // Points display
     const savedPoints = this.registry.get('points') || 0;
     this._points = savedPoints;
-    this._pointsTxt = this.add.text(20, 44, `⭐ ${this._points}`, {
-      fontSize: '14px', fontFamily: 'Georgia, serif',
+    this._pointsTxt = this.add.text(14, 49, `⭐ ${this._points}`, {
+      fontSize: '13px', fontFamily: 'Georgia, serif',
       color: '#f5c87a', stroke: '#1a0802', strokeThickness: 2
     }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(30);
 
@@ -266,26 +306,230 @@ export class BaseLevelScene extends Phaser.Scene {
       this.time.addEvent({
         delay: 1000, loop: true,
         callback: () => {
-          if (this._levelDone || this._isDying) return;
+          // Pause the clock during puzzles / pause menu so mini-games are fair
+          if (this._levelDone || this._isDying || this._puzzleActive || this._pauseMenuOpen) return;
           this._timerLeft = Math.max(0, this._timerLeft - 1);
           this._timerTxt.setText(`⏱ ${this._timerLeft}s`);
           this._timerTxt.setColor(this._timerLeft <= 10 ? '#ff3300' : '#f5c87a');
           if (this._timerLeft <= 0 && !this._timerFired) {
             this._timerFired = true;
-            this._showMessage("⏱ Time's up! -1 life!");
-            this.time.delayedCall(600, () => {
-              this._timerLeft  = this._timerFull;
+            this._isDying = true;
+            this._showMessage("⏱ Time's up! -1 Life! 💀");
+            this.cameras.main.shake(300, 0.012);
+            this.time.delayedCall(800, () => {
               this._timerFired = false;
+              this._timerLeft  = this._timerFull;
               if (this._timerTxt) {
                 this._timerTxt.setText(`⏱ ${this._timerFull}s`);
                 this._timerTxt.setColor('#f5c87a');
               }
-              this._onHazardHit();
+              this._loseLife(0.012);
             });
           }
         }
       });
     }
+
+    // ── Menu button (top-right) ───────────────────────────────────────────
+    this._pauseMenuOpen = false;
+    const menuBtnG = this.add.graphics().setScrollFactor(0).setDepth(36);
+    const drawMenuBtn = (hover) => {
+      menuBtnG.clear();
+      menuBtnG.fillStyle(hover ? 0x5a3010 : 0x2a1408, 0.88);
+      menuBtnG.fillRoundedRect(W - 46, 8, 38, 28, 6);
+      menuBtnG.lineStyle(1.5, hover ? 0xf5c87a : 0x8a6030, 1);
+      menuBtnG.strokeRoundedRect(W - 46, 8, 38, 28, 6);
+    };
+    drawMenuBtn(false);
+    this.add.text(W - 27, 22, '☰', {
+      fontSize: '16px', fontFamily: 'Georgia, serif', color: '#f5c87a'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(37);
+    const menuHit = this.add.rectangle(W - 27, 22, 38, 28, 0, 0)
+      .setScrollFactor(0).setDepth(38).setInteractive({ useHandCursor: true });
+    menuHit.on('pointerover', () => drawMenuBtn(true));
+    menuHit.on('pointerout',  () => drawMenuBtn(false));
+    menuHit.on('pointerup',   () => this._openPauseMenu());
+
+    // Esc key toggles the pause menu open/closed
+    this._escKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+    this._escKey.on('down', () => {
+      if (this._pauseMenuOpen && this._pauseResumeFn) {
+        this._pauseResumeFn(); // close menu
+      } else if (!this._pauseMenuOpen) {
+        this._openPauseMenu(); // open menu
+      }
+    });
+  }
+
+  _openPauseMenu() {
+    if (this._pauseMenuOpen) return;
+    this._pauseMenuOpen = true;
+
+    this.physics.pause();
+    this.tweens.pauseAll();
+    this.time.paused = true;
+
+    const W2 = W / 2, H2 = H / 2;
+    const PW = 270, PH = 268;
+    const px = W2 - PW / 2, py = H2 - PH / 2;
+    const toDestroy = [];
+
+    const backdrop = this.add.rectangle(W2, H2, W, H, 0x000000, 0.72)
+      .setScrollFactor(0).setDepth(95).setInteractive();
+    toDestroy.push(backdrop);
+
+    const panelG = this.add.graphics().setScrollFactor(0).setDepth(96);
+    panelG.fillStyle(0x100c06, 0.97);
+    panelG.fillRoundedRect(px, py, PW, PH, 14);
+    panelG.lineStyle(2.5, 0xf5c87a, 0.9);
+    panelG.strokeRoundedRect(px, py, PW, PH, 14);
+    toDestroy.push(panelG);
+
+    toDestroy.push(this.add.text(W2, py + 26, '☰  Game Menu', {
+      fontSize: '17px', fontFamily: 'Georgia, serif',
+      color: '#f5c87a', stroke: '#1a0802', strokeThickness: 2
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(97));
+
+    const divG = this.add.graphics().setScrollFactor(0).setDepth(97);
+    divG.lineStyle(1, 0xf5c87a, 0.35);
+    divG.lineBetween(px + 18, py + 44, px + PW - 18, py + 44);
+    toDestroy.push(divG);
+
+    const resume = () => {
+      toDestroy.forEach(o => { try { if (o && o.active) o.destroy(); } catch (_) {} });
+      this._pauseMenuOpen = false;
+      this._pauseResumeFn = null;
+      this.physics.resume();
+      this.tweens.resumeAll();
+      this.time.paused = false;
+    };
+    this._pauseResumeFn = resume;
+
+    const BTNS = [
+      { label: '▶   Resume',   color: '#a8e878',
+        action: () => resume() },
+      { label: '↺   Restart',  color: '#f5c87a',
+        action: () => { resume(); this.cameras.main.fadeOut(400, 0, 0, 0); this.time.delayedCall(450, () => this.scene.restart()); } },
+      { label: '⚙   Settings', color: '#c8a8f8',
+        action: () => this._openSettings(toDestroy, px, py, PW, PH, resume) },
+      { label: '✕   Exit',     color: '#f87070',
+        action: () => { resume(); this.cameras.main.fadeOut(500, 0, 0, 0); this.time.delayedCall(550, () => this.scene.start('Menu')); } },
+    ];
+
+    BTNS.forEach((btn, i) => {
+      const by = py + 56 + i * 50;
+      const BW = PW - 36, BH = 38;
+      const bx = px + 18;
+
+      const btnG = this.add.graphics().setScrollFactor(0).setDepth(97);
+      const draw = (hover) => {
+        btnG.clear();
+        btnG.fillStyle(hover ? 0x3a2010 : 0x221408, 0.95);
+        btnG.fillRoundedRect(bx, by, BW, BH, 8);
+        btnG.lineStyle(1.5, hover ? 0xf5c87a : 0x6a4820, hover ? 1 : 0.7);
+        btnG.strokeRoundedRect(bx, by, BW, BH, 8);
+      };
+      draw(false);
+      toDestroy.push(btnG);
+
+      const txt = this.add.text(bx + BW / 2, by + BH / 2, btn.label, {
+        fontSize: '14px', fontFamily: 'Georgia, serif', color: btn.color
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(98);
+      toDestroy.push(txt);
+
+      const hit = this.add.rectangle(bx + BW / 2, by + BH / 2, BW, BH, 0, 0)
+        .setScrollFactor(0).setDepth(99).setInteractive({ useHandCursor: true });
+      toDestroy.push(hit);
+      hit.on('pointerover', () => { draw(true);  txt.setColor('#ffffff'); });
+      hit.on('pointerout',  () => { draw(false); txt.setColor(btn.color); });
+      hit.on('pointerup',   () => btn.action());
+    });
+  }
+
+  _openSettings(parentDestroy, px, py, PW, PH, onClose) {
+    const W2 = W / 2, H2 = H / 2;
+    const SPW = PW - 20, SPH = 160;
+    const spx = W2 - SPW / 2, spy = H2 - SPH / 2;
+    const toDestroy = [];
+
+    const overlay = this.add.rectangle(W2, H2, W, H, 0x000000, 0.45)
+      .setScrollFactor(0).setDepth(100).setInteractive();
+    toDestroy.push(overlay);
+
+    const sg = this.add.graphics().setScrollFactor(0).setDepth(101);
+    sg.fillStyle(0x150f08, 0.98);
+    sg.fillRoundedRect(spx, spy, SPW, SPH, 12);
+    sg.lineStyle(2, 0xc8a870, 0.85);
+    sg.strokeRoundedRect(spx, spy, SPW, SPH, 12);
+    toDestroy.push(sg);
+
+    toDestroy.push(this.add.text(W2, spy + 22, '⚙  Settings', {
+      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#c8a8f8', stroke: '#0a0502', strokeThickness: 2
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(102));
+
+    const closeSettings = () => {
+      toDestroy.forEach(o => { try { if (o && o.active) o.destroy(); } catch (_) {} });
+    };
+
+    // Sound FX toggle
+    let sfxOn = this.registry.get('sfxOn') !== false;
+    const sfxG = this.add.graphics().setScrollFactor(0).setDepth(102);
+    const sfxTxt = this.add.text(W2, spy + 68, '', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#e8d0a8'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
+    toDestroy.push(sfxG, sfxTxt);
+    const drawSfx = () => {
+      sfxG.clear();
+      sfxG.fillStyle(sfxOn ? 0x44aa44 : 0x662222, 0.9);
+      sfxG.fillRoundedRect(W2 + 30, spy + 58, 50, 22, 11);
+      sfxTxt.setText(`🔊 Sound FX:  ${sfxOn ? 'ON ' : 'OFF'}`);
+    };
+    drawSfx();
+    const sfxHit = this.add.rectangle(W2 + 55, spy + 69, 50, 22, 0, 0)
+      .setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
+    toDestroy.push(sfxHit);
+    sfxHit.on('pointerup', () => { sfxOn = !sfxOn; this.registry.set('sfxOn', sfxOn); drawSfx(); });
+
+    // Music toggle
+    let musicOn = this.registry.get('musicOn') !== false;
+    const musicG = this.add.graphics().setScrollFactor(0).setDepth(102);
+    const musicTxt = this.add.text(W2, spy + 100, '', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#e8d0a8'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
+    toDestroy.push(musicG, musicTxt);
+    const drawMusic = () => {
+      musicG.clear();
+      musicG.fillStyle(musicOn ? 0x44aa44 : 0x662222, 0.9);
+      musicG.fillRoundedRect(W2 + 30, spy + 90, 50, 22, 11);
+      musicTxt.setText(`🎵 Music:        ${musicOn ? 'ON ' : 'OFF'}`);
+    };
+    drawMusic();
+    const musicHit = this.add.rectangle(W2 + 55, spy + 101, 50, 22, 0, 0)
+      .setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
+    toDestroy.push(musicHit);
+    musicHit.on('pointerup', () => { musicOn = !musicOn; this.registry.set('musicOn', musicOn); drawMusic(); });
+
+    // Back button
+    const backG = this.add.graphics().setScrollFactor(0).setDepth(102);
+    const drawBack = (h) => {
+      backG.clear();
+      backG.fillStyle(h ? 0x3a2010 : 0x221408, 0.95);
+      backG.fillRoundedRect(W2 - 50, spy + SPH - 38, 100, 28, 7);
+      backG.lineStyle(1.5, h ? 0xf5c87a : 0x6a4820, 1);
+      backG.strokeRoundedRect(W2 - 50, spy + SPH - 38, 100, 28, 7);
+    };
+    drawBack(false);
+    toDestroy.push(backG);
+    const backTxt = this.add.text(W2, spy + SPH - 24, '← Back', {
+      fontSize: '13px', fontFamily: 'Georgia, serif', color: '#f5c87a'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(103);
+    toDestroy.push(backTxt);
+    const backHit = this.add.rectangle(W2, spy + SPH - 24, 100, 28, 0, 0)
+      .setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
+    toDestroy.push(backHit);
+    backHit.on('pointerover', () => { drawBack(true);  backTxt.setColor('#ffffff'); });
+    backHit.on('pointerout',  () => { drawBack(false); backTxt.setColor('#f5c87a'); });
+    backHit.on('pointerup',   () => closeSettings());
   }
 
   _showObjective(text) {
@@ -315,26 +559,9 @@ export class BaseLevelScene extends Phaser.Scene {
   }
 
   _buildTouchControls() {
-    const touchY   = H - 45;
-    const btnStyle = { fontSize: '22px', color: '#f5e0b0', backgroundColor: 'rgba(40,20,5,0.7)', padding: { x: 14, y: 8 } };
-
-    this._touchLeft  = this.add.text(30,      touchY, '◀', btnStyle).setScrollFactor(0).setDepth(40).setInteractive();
-    this._touchRight = this.add.text(90,      touchY, '▶', btnStyle).setScrollFactor(0).setDepth(40).setInteractive();
-    this._touchJump  = this.add.text(W - 80,  touchY, '🦘', btnStyle).setScrollFactor(0).setDepth(40).setInteractive();
-    this._touchBark  = this.add.text(W - 150, touchY, '🐕', btnStyle).setScrollFactor(0).setDepth(40).setInteractive();
-
-    this._touchState = { left: false, right: false, jump: false };
-
-    this._touchLeft.on('pointerdown', () => this._touchState.left = true)
-                   .on('pointerup',   () => this._touchState.left = false)
-                   .on('pointerout',  () => this._touchState.left = false);
-    this._touchRight.on('pointerdown', () => this._touchState.right = true)
-                    .on('pointerup',   () => this._touchState.right = false)
-                    .on('pointerout',  () => this._touchState.right = false);
-    this._touchJump.on('pointerdown', () => { this._touchState.jump = true; })
-                   .on('pointerup',   () => this._touchState.jump = false);
-    this._touchBark.on('pointerdown', () => { this._doBark(); });
-
+    // Touch controls live in the HTML footer (#game-footer) — see index.html.
+    // We just point this._touchState at the shared global so updateMovement() works unchanged.
+    this._touchState = window._touchState || { left: false, right: false, jump: false };
     this.input.addPointer(3);
   }
 
@@ -367,7 +594,7 @@ export class BaseLevelScene extends Phaser.Scene {
   }
 
   updateMovement() {
-    if (this._isDying) return;
+    if (this._isDying || this._puzzleActive || this._pauseMenuOpen) return;
 
     // Fell into a gap — trigger death
     if (this.shadow.y > H + 80) { this._onFallDeath(); return; }
@@ -390,24 +617,24 @@ export class BaseLevelScene extends Phaser.Scene {
     if (left) {
       s.setVelocityX(-speed);
       s.setFlipX(true);
-      if (onG) s.play('shadow_walk', true);
+      if (onG) s.play(this._walkAnim, true);
       this._spawnDust(s.x + 10, s.y + 20);
     } else if (right) {
       s.setVelocityX(speed);
       s.setFlipX(false);
-      if (onG) s.play('shadow_walk', true);
+      if (onG) s.play(this._walkAnim, true);
       this._spawnDust(s.x - 10, s.y + 20);
     } else {
       s.setVelocityX(0);
-      if (onG) s.play('shadow_idle_anim', true);
+      if (onG) s.play(this._idleAnim, true);
     }
 
     if (jump && onG) {
       s.setVelocityY(-430);
-      s.play('shadow_jump_anim', true);
+      s.play(this._jumpAnim, true);
       this._spawnDust(s.x, s.y + 20, true);
     }
-    if (!onG) s.play('shadow_jump_anim', true);
+    if (!onG) s.play(this._jumpAnim, true);
 
     if (bark) this._doBark();
 
@@ -448,78 +675,113 @@ export class BaseLevelScene extends Phaser.Scene {
     }
   }
 
+  // ── Shared respawn logic (teleport Shadow to last checkpoint) ───────────
+  _respawnAtCheckpoint() {
+    this.time.delayedCall(800, () => {
+      this.cameras.main.fadeOut(300, 0, 0, 0);
+      this.time.delayedCall(350, () => {
+        this.shadow.clearTint();
+        this.shadow.setAlpha(1);
+        this.shadow.setPosition(this._checkpointX, this._checkpointY);
+        this.shadow.setVelocity(0, 0);
+        this.cameras.main.fadeIn(400, 0, 0, 0);
+        this.tweens.add({
+          targets: this.shadow, alpha: { from: 0.3, to: 1 },
+          duration: 130, repeat: 4, yoyo: true,
+          onComplete: () => {
+            this.shadow.setAlpha(1);
+            this._isDying = false;
+            this._damageCD = false;
+          }
+        });
+      });
+    });
+  }
+
+  // ── Shared "lost a life" handler — decrements heart and respawns or restarts
+  _loseLife(shake = 0.012) {
+    this._lives--;
+    this.registry.set('lives', this._lives);
+    this._shadowHP = 3;
+    this._updateHPDots();
+
+    const lostHeart = this._hearts[this._lives];
+    if (lostHeart) {
+      lostHeart.setTint(0x444444);
+      this.tweens.add({ targets: lostHeart, alpha: 0.25, duration: 300 });
+    }
+    this.cameras.main.shake(380, shake);
+
+    if (this._lives <= 0) {
+      this._showMessage('💔 No lives left! Starting over...');
+      this.time.delayedCall(1800, () => {
+        this.cameras.main.fadeOut(500, 0, 0, 0);
+        this.registry.set('lives', 3);
+        this.registry.set('shadowHP', 3);
+        this.time.delayedCall(550, () => this.scene.restart());
+      });
+    } else {
+      this._showMessage(`💔 Life lost! ${this._lives} ${this._lives === 1 ? 'life' : 'lives'} left — respawning! 🐾`);
+      this._respawnAtCheckpoint();
+    }
+  }
+
   _onFallDeath() {
     if (this._isDying || this._levelDone) return;
     this._isDying = true;
+    this._damageCD = true;
 
     this.cameras.main.shake(400, 0.018);
     this.shadow.setTint(0xff3300);
     this.tweens.add({ targets: this.shadow, alpha: 0, duration: 400 });
 
-    this._lives--;
-    this.registry.set('lives', this._lives);
-    const lostHeart = this._hearts[this._lives];
-    if (lostHeart) {
-      lostHeart.setTint(0x444444);
-      this.tweens.add({ targets: lostHeart, alpha: 0.25, duration: 300 });
-    }
-
-    if (this._lives <= 0) {
-      this._showMessage('💔 No lives left! Starting over...');
-      this.time.delayedCall(2000, () => {
-        this.cameras.main.fadeOut(600, 0, 0, 0);
-        this.registry.set('lives', 3);
-        this.time.delayedCall(650, () => this.scene.restart());
-      });
-    } else {
-      this._showMessage(`🐾 Shadow fell! ${this._lives} ${this._lives === 1 ? 'life' : 'lives'} left!`);
-      this.time.delayedCall(1400, () => {
-        this.cameras.main.fadeOut(300, 0, 0, 0);
-        this.time.delayedCall(350, () => {
-          this.shadow.clearTint();
-          this.shadow.setAlpha(1);
-          this.shadow.setPosition(this._checkpointX, this._checkpointY);
-          this.shadow.setVelocity(0, 0);
-          this.cameras.main.fadeIn(400, 0, 0, 0);
-          this.tweens.add({
-            targets: this.shadow, alpha: { from: 0.3, to: 1 },
-            duration: 130, repeat: 4, yoyo: true,
-            onComplete: () => { this.shadow.setAlpha(1); this._isDying = false; }
-          });
-        });
-      });
-    }
+    this._loseLife(0.018);
   }
 
+  // 3-hit sub-health: every 3 hits from hazard = 1 life lost + checkpoint respawn
   _onHazardHit() {
     if (this._isDying || this._damageCD || this._levelDone) return;
     this._damageCD = true;
 
-    this._lives--;
-    this.registry.set('lives', this._lives);
-    const lostHeart = this._hearts[this._lives];
-    if (lostHeart) {
-      lostHeart.setTint(0x444444);
-      this.tweens.add({ targets: lostHeart, alpha: 0.25, duration: 300 });
-    }
+    this._shadowHP--;
+    this._updateHPDots();
 
-    this.cameras.main.shake(280, 0.012);
+    this.cameras.main.shake(220, 0.01);
     this.shadow.setTint(0xff4444);
     this.tweens.add({
       targets: this.shadow, alpha: 0.4, duration: 160, yoyo: true, repeat: 3,
       onComplete: () => { this.shadow.clearTint(); this.shadow.setAlpha(1); }
     });
 
-    if (this._lives <= 0) {
-      this._showMessage('💔 No lives left! Starting over...');
-      this.time.delayedCall(1600, () => {
-        this.cameras.main.fadeOut(500, 0, 0, 0);
-        this.registry.set('lives', 3);
-        this.time.delayedCall(550, () => this.scene.restart());
-      });
+    if (this._shadowHP <= 0) {
+      // All 3 hits used — lose a life, respawn at checkpoint
+      this._isDying = true;
+      this._loseLife(0.012);
     } else {
-      this._showMessage(`Ouch! ${this._lives} ${this._lives === 1 ? 'life' : 'lives'} left! 🐾`);
-      this.time.delayedCall(1200, () => { this._damageCD = false; });
+      this._showMessage(`Ouch! ${this._shadowHP} HP left! 🐾`);
+      this.time.delayedCall(2500, () => { this._damageCD = false; });
+    }
+  }
+
+  _updateHPDots() {
+    this._drawHPPips();
+  }
+
+  _drawHPPips() {
+    if (!this._hpGraphics) return;
+    this._hpGraphics.clear();
+    const PW = 17, PH = 7, GAP = 3, X0 = 10, Y = 35;
+    const activeCol = this._shadowHP >= 3 ? 0x33dd33 : this._shadowHP === 2 ? 0xeecc00 : 0xff3300;
+    for (let i = 0; i < 3; i++) {
+      const px = X0 + i * (PW + GAP);
+      this._hpGraphics.fillStyle(0x110603, 1);
+      this._hpGraphics.fillRoundedRect(px, Y - 3, PW, PH, 2);
+      this._hpGraphics.lineStyle(1, 0x4a2808, 1);
+      this._hpGraphics.strokeRoundedRect(px, Y - 3, PW, PH, 2);
+      if (i < this._shadowHP) {
+        this._hpGraphics.fillStyle(activeCol, 1);
+        this._hpGraphics.fillRoundedRect(px + 1, Y - 2, PW - 2, PH - 2, 1);
+      }
     }
   }
 
@@ -547,6 +809,7 @@ export class BaseLevelScene extends Phaser.Scene {
 
   _completeLevel(nextScene, message = 'Level Complete!') {
     this.registry.set('lives', this._lives);
+    this.registry.set('shadowHP', 3);
     this.physics.pause();
     this.cameras.main.shake(300, 0.01);
 
@@ -602,9 +865,112 @@ export class BaseLevelScene extends Phaser.Scene {
 
   _canAfford(n) { return (this._points || 0) >= n; }
 
+  _resetTimer(seconds) {
+    if (!this._timerTxt) return;
+    this._timerLeft  = seconds;
+    this._timerFull  = seconds;
+    this._timerFired = false;
+    this._timerTxt.setText(`⏱ ${seconds}s`);
+    this._timerTxt.setColor('#f5c87a');
+  }
+
+  // ── Activity intro card: Play / Skip shown before every puzzle ───────────
+  _showActivityIntro(emoji, title, desc, skipCost, onPlay, onSkip) {
+    this._puzzleActive = true;
+    this.physics.pause();
+    const W2 = W / 2, H2 = H / 2;
+    const PW = 320, PH = 236;
+    const px = W2 - PW / 2, py = H2 - PH / 2;
+    const td = [];
+
+    const bd = this.add.rectangle(W2, H2, W, H, 0x000000, 0.65)
+      .setScrollFactor(0).setDepth(72).setInteractive();
+    td.push(bd);
+
+    const pg = this.add.graphics().setScrollFactor(0).setDepth(73);
+    pg.fillStyle(0x120e08, 0.97);
+    pg.fillRoundedRect(px, py, PW, PH, 16);
+    pg.lineStyle(2.5, 0xf5c87a, 0.85);
+    pg.strokeRoundedRect(px, py, PW, PH, 16);
+    td.push(pg);
+
+    td.push(this.add.text(W2, py + 38, emoji, { fontSize: '38px' })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(74));
+    td.push(this.add.text(W2, py + 88, title, {
+      fontSize: '19px', fontFamily: 'Georgia, serif',
+      color: '#f5c87a', stroke: '#0a0502', strokeThickness: 2
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(74));
+    td.push(this.add.text(W2, py + 116, desc, {
+      fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8a870', align: 'center'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(74));
+
+    const close = (resume) => {
+      td.forEach(o => { try { o.destroy(); } catch (_) {} });
+      if (resume) {
+        this._puzzleActive = false;
+        this.physics.resume();
+      }
+    };
+
+    // ▶ Play
+    const playG = this.add.graphics().setScrollFactor(0).setDepth(74);
+    const drawP = (h) => {
+      playG.clear();
+      playG.fillStyle(h ? 0x3a8820 : 0x1e5c0e, 0.95);
+      playG.fillRoundedRect(W2 - 118, py + PH - 64, 108, 40, 9);
+      playG.lineStyle(2, h ? 0x88ff44 : 0x44aa22, 1);
+      playG.strokeRoundedRect(W2 - 118, py + PH - 64, 108, 40, 9);
+    };
+    drawP(false);
+    td.push(playG);
+    const pTxt = this.add.text(W2 - 64, py + PH - 44, '▶  Play', {
+      fontSize: '15px', fontFamily: 'Georgia, serif', color: '#88ff66'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(75);
+    td.push(pTxt);
+    const pH = this.add.rectangle(W2 - 64, py + PH - 44, 108, 40, 0, 0)
+      .setScrollFactor(0).setDepth(76).setInteractive({ useHandCursor: true });
+    td.push(pH);
+    pH.on('pointerover', () => { drawP(true);  pTxt.setColor('#ffffff'); });
+    pH.on('pointerout',  () => { drawP(false); pTxt.setColor('#88ff66'); });
+    pH.on('pointerup',   () => { close(true); onPlay(); });
+
+    // ⏭ Skip
+    const canAfford = this._canAfford(skipCost);
+    const skipG = this.add.graphics().setScrollFactor(0).setDepth(74);
+    const drawS = (h) => {
+      skipG.clear();
+      skipG.fillStyle(canAfford ? (h ? 0x5a1a1a : 0x3a0e0e) : 0x2a2a2a, 0.95);
+      skipG.fillRoundedRect(W2 + 10, py + PH - 64, 108, 40, 9);
+      skipG.lineStyle(2, canAfford ? (h ? 0xff6666 : 0x883333) : 0x555555, 1);
+      skipG.strokeRoundedRect(W2 + 10, py + PH - 64, 108, 40, 9);
+    };
+    drawS(false);
+    td.push(skipG);
+    const sTxt = this.add.text(W2 + 64, py + PH - 44,
+      canAfford ? `⏭ Skip\n-${skipCost} ⭐` : `Need ${skipCost} ⭐`, {
+      fontSize: '12px', fontFamily: 'Georgia, serif',
+      color: canAfford ? '#ff9999' : '#666666', align: 'center'
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(75);
+    td.push(sTxt);
+    if (canAfford) {
+      const sH = this.add.rectangle(W2 + 64, py + PH - 44, 108, 40, 0, 0)
+        .setScrollFactor(0).setDepth(76).setInteractive({ useHandCursor: true });
+      td.push(sH);
+      sH.on('pointerover', () => { drawS(true);  sTxt.setColor('#ffffff'); });
+      sH.on('pointerout',  () => { drawS(false); sTxt.setColor('#ff9999'); });
+      sH.on('pointerup',   () => {
+        close(true);
+        this._spendPoints(skipCost);
+        this._showMessage(`Skipped! -${skipCost} ⭐`);
+        onSkip();
+      });
+    }
+  }
+
   // ── Puzzle popup framework ────────────────────────────────────────────────
   // Returns { toDestroy, close, addSkip }
   _openPuzzlePopup(title, sub) {
+    this._puzzleActive = true;
     this.physics.pause();
     const toDestroy = [];
 
@@ -632,6 +998,7 @@ export class BaseLevelScene extends Phaser.Scene {
 
     const close = () => {
       toDestroy.forEach(o => { try { this.tweens.killTweensOf(o); o.destroy(); } catch (_) {} });
+      this._puzzleActive = false;
       this.physics.resume();
     };
 
@@ -669,7 +1036,8 @@ export class BaseLevelScene extends Phaser.Scene {
   }
 
   // ── Puzzle 0: Memory Card Match (3×2 grid, jungle theme) ────────────────
-  _puzzleMemoryCards(onDone) {
+  _puzzleMemoryCards(onDone, _skip = false) {
+    if (!_skip) { this._showActivityIntro('🃏', 'Memory Match', 'Flip and match all the pairs!', 5, () => this._puzzleMemoryCards(onDone, true), onDone); return; }
     // Three jungle-themed pairs
     const PAIRS = [
       { emoji: '🐾', color: 0xf5a020, name: 'Paw'   },
@@ -689,6 +1057,10 @@ export class BaseLevelScene extends Phaser.Scene {
     }
 
     const { toDestroy, close, addSkip } = this._openPuzzlePopup('🃏 Memory Match!', 'Find all 3 matching pairs!');
+
+    // Guard against the Play-button click accidentally triggering a card
+    let inputReady = false;
+    this.time.delayedCall(220, () => { inputReady = true; });
 
     let flipped = [], locked = false, matchedCount = 0;
 
@@ -795,7 +1167,7 @@ export class BaseLevelScene extends Phaser.Scene {
       });
 
       hit.on('pointerup', () => {
-        if (locked || card.revealed || card.matched || card.flipping) return;
+        if (!inputReady || locked || card.revealed || card.matched || card.flipping) return;
         card.flipping = true;
 
         // ── Phase 1: squish back to 0 width ─────────────────────────
@@ -897,7 +1269,12 @@ export class BaseLevelScene extends Phaser.Scene {
         flipped = []; locked = false;
 
         if (matchedCount === 3) {
-          this.time.delayedCall(700, () => { close(); this._givePoints(2); onDone(); });
+          this.time.delayedCall(700, () => {
+            close();
+            this.physics.resume();
+            this._givePoints(2);
+            onDone();
+          });
         }
       } else {
         // ❌ MISMATCH — shake + red flash, then flip back (from HTML mismatchShake)
@@ -1056,7 +1433,8 @@ export class BaseLevelScene extends Phaser.Scene {
   }
 
   // ── Puzzle 3: Size Compare — tap the biggest ──────────────────────────────
-  _puzzleSizeCompare(onDone) {
+  _puzzleSizeCompare(onDone, _skip = false) {
+    if (!_skip) { this._showActivityIntro('📏', 'Size Compare', 'Tap the biggest one!', 5, () => this._puzzleSizeCompare(onDone, true), onDone); return; }
     const sizes = Phaser.Utils.Array.Shuffle([28, 48, 68]);
     const biggestIdx = sizes.indexOf(68);
     const { toDestroy, close, addSkip } = this._openPuzzlePopup('🔵 Which is Biggest?', 'Tap the biggest circle!');
@@ -1102,7 +1480,8 @@ export class BaseLevelScene extends Phaser.Scene {
   }
 
   // ── Puzzle 4: Pattern Completion — what comes next? ───────────────────────
-  _puzzlePattern(onDone) {
+  _puzzlePattern(onDone, _skip = false) {
+    if (!_skip) { this._showActivityIntro('🔢', 'What Comes Next?', 'Finish the pattern!', 5, () => this._puzzlePattern(onDone, true), onDone); return; }
     const patterns = [
       { seq: ['🍓','🍊','🍓','🍊'], answer: '🍓', choices: ['🍓','🍌','🍇'] },
       { seq: ['🌟','🌙','🌟','🌙'], answer: '🌟', choices: ['🌟','☀️','⭐'] },
@@ -1167,7 +1546,8 @@ export class BaseLevelScene extends Phaser.Scene {
 
   // ── Puzzle 5b: Match Columns (tap name → tap matching picture) ───────────
   // Adapted from kids_click_match_quiz.html — 3 pairs, jungle theme, in-popup SVG-style arrows
-  _puzzleMatchColumns(onDone) {
+  _puzzleMatchColumns(onDone, _skip = false) {
+    if (!_skip) { this._showActivityIntro('🔗', 'Match It!', 'Match each item with its pair!', 5, () => this._puzzleMatchColumns(onDone, true), onDone); return; }
     // Game-character pairs (all under-7s will recognise from playing)
     const PAIRS = [
       { name: 'Shadow', emoji: '🐾', mColor: 0xd4a030 },
@@ -1184,6 +1564,9 @@ export class BaseLevelScene extends Phaser.Scene {
 
     const { toDestroy, close, addSkip } =
       this._openPuzzlePopup('🔗 Match It!', 'Tap a name → then tap its matching picture!');
+
+    let inputReady = false;
+    this.time.delayedCall(220, () => { inputReady = true; });
 
     // ── Inline feedback (depth 82 > popup, so it's always visible) ─────────
     const feedbackTxt = this.add.text(W / 2, 333, '', {
@@ -1271,7 +1654,7 @@ export class BaseLevelScene extends Phaser.Scene {
       hit.on('pointerover', () => { if (!card.locked) this.tweens.add({ targets: txt, scaleX: 1.06, scaleY: 1.06, duration: 100 }); });
       hit.on('pointerout',  () => { if (!card.locked) this.tweens.add({ targets: txt, scaleX: 1, scaleY: 1, duration: 100 }); });
       hit.on('pointerup', () => {
-        if (card.locked) return;
+        if (!inputReady || card.locked) return;
         // Deselect previous (like HTML handleClick deselect logic)
         if (selectedPairIdx !== null && selectedPairIdx !== pairIdx) {
           const prev = nameCards.find(c => c.pairIdx === selectedPairIdx);
@@ -1304,7 +1687,7 @@ export class BaseLevelScene extends Phaser.Scene {
       hit.on('pointerover', () => { if (!card.locked) this.tweens.add({ targets: txt, scaleX: 1.12, scaleY: 1.12, duration: 100 }); });
       hit.on('pointerout',  () => { if (!card.locked) this.tweens.add({ targets: txt, scaleX: 1, scaleY: 1, duration: 100 }); });
       hit.on('pointerup', () => {
-        if (card.locked) return;
+        if (!inputReady || card.locked) return;
 
         if (selectedPairIdx === null) {
           showFB('Tap a name on the left first! 📝', false);
@@ -1356,7 +1739,12 @@ export class BaseLevelScene extends Phaser.Scene {
           showFB(matchedCount < 3 ? '✓ Match! Find the next pair!' : '🌟 All matched! Amazing!', true);
 
           if (matchedCount === 3) {
-            this.time.delayedCall(900, () => { close(); this._givePoints(2); onDone(); });
+            this.time.delayedCall(900, () => {
+              close();
+              this.physics.resume();
+              this._givePoints(2);
+              onDone();
+            });
           }
 
         } else {
@@ -1381,7 +1769,8 @@ export class BaseLevelScene extends Phaser.Scene {
 
   // ── Puzzle: Missing Letter (LEXIS cipher adapted for under-7s) ───────────
   // Adapted from missing-letter-game.html — tile states, key states, shake/popIn anims
-  _puzzleMissingLetter(onDone) {
+  _puzzleMissingLetter(onDone, _skip = false) {
+    if (!_skip) { this._showActivityIntro('🔤', 'Missing Letter', 'Find the missing letter!', 5, () => this._puzzleMissingLetter(onDone, true), onDone); return; }
     // Simple 4-letter jungle/food words (under-7 vocab)
     const WORDS = [
       { word: 'LEAF', emoji: '🌿', clue: 'Found on jungle trees!' },
@@ -1414,6 +1803,9 @@ export class BaseLevelScene extends Phaser.Scene {
 
     const { toDestroy, close, addSkip } =
       this._openPuzzlePopup('🔤 Fill the Gap!', 'Which letter is missing?');
+
+    let inputReady = false;
+    this.time.delayedCall(220, () => { inputReady = true; });
 
     // ── Emoji picture clue (big, centered) — replaces HTML .hint-box ───────
     toDestroy.push(this.add.text(W / 2, 162, picked.emoji, { fontSize: '38px' })
@@ -1581,7 +1973,7 @@ export class BaseLevelScene extends Phaser.Scene {
       hit.on('pointerout',  () => { if (!btnLocked) drawBtn('normal'); });
 
       hit.on('pointerup', () => {
-        if (btnLocked || solved) return;
+        if (!inputReady || btnLocked || solved) return;
         btnLocked = true;
 
         if (letter === correctLetter) {
@@ -1606,7 +1998,7 @@ export class BaseLevelScene extends Phaser.Scene {
           this.tweens.add({ targets: sp, scale: 2.2, alpha: 0, duration: 600, onComplete: () => sp.destroy() });
 
           showFB('🌟 Correct! Amazing job!', true);
-          this.time.delayedCall(950, () => { close(); this._givePoints(2); onDone(); });
+          this.time.delayedCall(950, () => { close(); this.physics.resume(); this._givePoints(2); onDone(); });
 
         } else {
           // ❌ WRONG — .tile.wrong-letter shake + @keyframes shake + lose life

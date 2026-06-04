@@ -7,13 +7,67 @@ html, body {
   font-family: 'Georgia', serif;
 }
 
+/* ── Outer wrapper: game canvas on top, footer below ─────────────────────── */
+#game-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
 #game-container {
-  width: 100vw; height: 100vh;
-  display: flex; align-items: center; justify-content: center;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
 }
 
 canvas { display: block; image-rendering: pixelated; }
 
+/* ── Footer: touch controls live here, BELOW the game canvas ─────────────── */
+#game-footer {
+  height: 70px;
+  flex-shrink: 0;
+  background: #0d0806;
+  border-top: 2px solid #3a2010;
+  display: none;           /* hidden by default; shown only during levels */
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 28px;
+}
+
+.footer-left,
+.footer-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ctrl-btn {
+  background: rgba(42, 20, 8, 0.88);
+  border: 1.5px solid #8a6030;
+  border-radius: 10px;
+  color: #f5e0b0;
+  font-size: 24px;
+  padding: 7px 16px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.08s, border-color 0.08s;
+}
+
+.ctrl-btn:active,
+.ctrl-btn.pressed {
+  background: rgba(90, 48, 16, 0.95);
+  border-color: #f5c87a;
+}
+
+/* ── Loading screen (full-page overlay) ──────────────────────────────────── */
 #loading-screen {
   position: fixed; inset: 0;
   background: linear-gradient(180deg, #1a0a05 0%, #2d1510 50%, #0d0508 100%);

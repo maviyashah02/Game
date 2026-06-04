@@ -21,17 +21,109 @@ export class MenuScene extends Phaser.Scene {
     // Continue: cy=330, h=38  → top edge at 311  (gap 19px)
     // Settings: cy=378, h=38  → top edge at 359  (gap 21px)
 
-    this._playBtn(158, 268, () => {
+    this._playBtn(158, 240, '🐾 Level 1', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
       this.cameras.main.fadeOut(500, 0, 0, 0);
-      this.time.delayedCall(520, () => this.scene.start('Cinematic1'));
+      this.time.delayedCall(520, () => this.scene.start('IntroVideo'));
     });
 
-    this._secondaryBtn(152, 330, '📖', 'Continue', () => this._showContinueMsg());
-    this._secondaryBtn(152, 378, '⚙', 'Settings',  () => this._showSettings());
+    this._playBtn(158, 300, '👧 Level 2', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Cinematic2'));
+    });
+
+    this._playBtn(158, 330, '🚗 Level 3', () => {
+      this.registry.set('l3_health', 100);
+      this.registry.set('l3_coins',  0);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Level3'));
+    });
+
+    this._playBtn(158, 390, '🏠 Level 4', () => {
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Level4'));
+    });
+
+    this._secondaryBtn(152, 428, '📖', 'Continue', () => this._showContinueMsg());
+    this._secondaryBtn(152, 440, '⚙', 'Settings',  () => this._showSettings());
+
+    // ── Level 3 zone test panel — centre ─────────────────────────────────
+    const tp3G = this.add.graphics().setDepth(9);
+    tp3G.fillStyle(0x020810, 0.72);
+    tp3G.fillRoundedRect(302, 195, 192, 195, 12);
+    tp3G.lineStyle(1.5, 0x4488cc, 0.55);
+    tp3G.strokeRoundedRect(302, 195, 192, 195, 12);
+
+    this.add.text(398, 214, '🔧  L3 Zone Jump', {
+      fontSize: '12px', fontFamily: 'Georgia, serif',
+      color: '#88ccff', stroke: '#010408', strokeThickness: 2
+    }).setOrigin(0.5).setDepth(12);
+
+    this._secondaryBtn(398, 250, '1️⃣', 'Zone 1', () => {
+      this.registry.set('l3_health', 100);
+      this.registry.set('l3_coins',  0);
+      this.registry.set('l3_startZone', 1);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('L3_Drive'));
+    });
+
+    this._secondaryBtn(398, 292, '2️⃣', 'Zone 2', () => {
+      this.registry.set('l3_health', 80);
+      this.registry.set('l3_coins',  0);
+      this.registry.set('l3_startZone', 2);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('L3_Drive'));
+    });
+
+    // ── Level 2 phase (zone) test panel — right side ─────────────────────
+    const tpG = this.add.graphics().setDepth(9);
+    tpG.fillStyle(0x080402, 0.72);
+    tpG.fillRoundedRect(534, 195, 192, 228, 12);
+    tpG.lineStyle(1.5, 0xc8a040, 0.55);
+    tpG.strokeRoundedRect(534, 195, 192, 228, 12);
+
+    this.add.text(630, 214, '🔧  L2 Zone Jump', {
+      fontSize: '12px', fontFamily: 'Georgia, serif',
+      color: '#f5c87a', stroke: '#0a0502', strokeThickness: 2
+    }).setOrigin(0.5).setDepth(12);
+
+    this._secondaryBtn(630, 250, '1️⃣', 'Phase 1', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.registry.set('l2_testPhase', 1);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Level2'));
+    });
+
+    this._secondaryBtn(630, 292, '2️⃣', 'Phase 2', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.registry.set('l2_testPhase', 2);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Level2'));
+    });
+
+    this._secondaryBtn(630, 334, '3️⃣', 'Phase 3', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.registry.set('l2_testPhase', 3);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Level2'));
+    });
+
+    this._secondaryBtn(630, 376, '🐾', 'L2 Trust QA', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('L2_Calmer'));
+    });
   }
 
   // ── Coral-red Play button ─────────────────────────────────────────────────
-  _playBtn(cx, cy, cb) {
+  _playBtn(cx, cy, label, cb) {
     const BW = 210, BH = 48, R = 24;
     const bx = cx - BW / 2, by = cy - BH / 2;
 
@@ -67,19 +159,16 @@ export class MenuScene extends Phaser.Scene {
     const hit = this.add.rectangle(cx, cy - 1, BW, BH - 3, 0x000000, 0)
       .setDepth(11).setInteractive({ useHandCursor: true });
 
-    const label = this.add.text(cx - 14, cy - 2, 'Play', {
-      fontSize: '21px', fontFamily: 'Georgia, serif',
+    const labelTxt = this.add.text(cx, cy - 2, label, {
+      fontSize: '19px', fontFamily: 'Georgia, serif',
       color: '#ffffff', stroke: '#5a0a0a', strokeThickness: 3,
       shadow: { x: 1, y: 2, color: '#000', blur: 3, fill: true }
     }).setOrigin(0.5).setDepth(11);
 
-    const paw = this.add.text(cx + 60, cy - 2, '🐾', { fontSize: '17px' })
-      .setOrigin(0.5).setDepth(11);
-
-    hit.on('pointerover', () => { redraw(true);  label.setScale(1.04); paw.setScale(1.04); });
-    hit.on('pointerout',  () => { redraw(false); label.setScale(1);    paw.setScale(1); });
-    hit.on('pointerdown', () => { label.y += 2; paw.y += 2; });
-    hit.on('pointerup',   () => { label.y -= 2; paw.y -= 2; cb(); });
+    hit.on('pointerover', () => { redraw(true);  labelTxt.setScale(1.04); });
+    hit.on('pointerout',  () => { redraw(false); labelTxt.setScale(1); });
+    hit.on('pointerdown', () => { labelTxt.y += 2; });
+    hit.on('pointerup',   () => { labelTxt.y -= 2; cb(); });
   }
 
   // ── Beige secondary button ────────────────────────────────────────────────

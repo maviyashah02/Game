@@ -16,7 +16,7 @@ export class EndScene extends Phaser.Scene {
     for (let x = 0; x < 800; x += 32) this.add.image(x + 16, 434, 'ground').setDisplaySize(32, 32);
 
     this.add.image(300, 358, 'shadow_idle').setDisplaySize(150, 82).setDepth(5);
-    this.add.image(490, 360, 'gemma').setScale(1.2).setDepth(5);
+    this.add.image(490, 388, 'gemma_happy').setDisplaySize(110, 60).setDepth(5);
 
     this.time.addEvent({
       delay: 600, loop: true, callback: () => {
