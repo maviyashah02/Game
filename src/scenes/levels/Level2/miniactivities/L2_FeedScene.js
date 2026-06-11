@@ -5,8 +5,8 @@ import { addBondAtmosphere } from './L2_TrustMeter.js';
 // L2 Trust Mini-Activity — Feed Gemma (drag & drop care game)
 // Chain:  Calm Gemma → THIS → Pet → Rhythm → End
 // Drag the SAFE foods into the bowl. Toxic foods (chocolate, grapes…) hurt — avoid them!
-const SAFE  = ['🍖', '🦴', '🍗', '🥩', '🧀'];
-const TOXIC = ['🍫', '🍇', '🧅', '🍬', '🍄'];
+const SAFE  = ['l2feed_meat', 'l2feed_bone', 'l2feed_chicken', 'l2feed_cheese'];
+const TOXIC = ['l2feed_choc', 'l2feed_grapes', 'l2feed_candy', 'l2feed_mushroom'];
 const NEED  = 4;     // safe foods to feed
 const LIVES = 2;     // wrong drags allowed
 const TIME  = 30;    // seconds (real-challenge)
@@ -18,10 +18,12 @@ export class L2_FeedScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#0d0806');
     this.cameras.main.fadeIn(500, 0, 0, 0);
 
-    if (this.textures.exists('jungle_bg'))
+    if (this.textures.exists('l2feed_bg')) {
+      this.add.image(W / 2, H / 2, 'l2feed_bg').setDisplaySize(W, H).setDepth(-5);
+    } else if (this.textures.exists('jungle_bg')) {
       this.add.image(400, 225, 'jungle_bg').setDisplaySize(800, 450).setAlpha(0.42).setTint(0x121a14).setDepth(-5);
-    this.add.rectangle(400, 225, 800, 450, 0x1a0a14, 0.5).setDepth(-4);
-    this.add.tileSprite(400, H - 11, 800, 70, 'ground').setTileScale(0.14, 0.14).setDepth(5);
+    }
+    this.add.rectangle(400, 225, 800, 450, 0x000000, 0.18).setDepth(-4);
     addBondAtmosphere(this, { auraX: 560, auraY: 360 });
 
     // Title
@@ -42,14 +44,15 @@ export class L2_FeedScene extends Phaser.Scene {
       ? this.add.image(640, 421, 'gemma_happy').setDisplaySize(150, 82).setOrigin(0.5, 1).setDepth(8)
       : this.add.text(640, 360, '🐶', { fontSize: '70px' }).setOrigin(0.5, 1).setDepth(8);
 
-    // Bowl (drop target)
+    // Bowl (drop target) — real sprite
     const bowlX = 560, bowlY = 330;
-    const bg = this.add.graphics().setDepth(7);
-    bg.fillStyle(0x000000, 0.18); bg.fillEllipse(bowlX, bowlY + 22, 130, 24);
-    bg.fillStyle(0x2a5a9a, 1);    bg.fillEllipse(bowlX, bowlY, 130, 54);
-    bg.fillStyle(0x1a3a6a, 1);    bg.fillEllipse(bowlX, bowlY - 6, 108, 40);
-    bg.fillStyle(0x3a6aaa, 0.5);  bg.fillEllipse(bowlX - 20, bowlY - 12, 44, 16);
-    this.add.text(bowlX, bowlY - 46, '🍽️ BOWL', { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(9);
+    this.add.ellipse(bowlX, bowlY + 22, 130, 24, 0x000000, 0.18).setDepth(6);
+    if (this.textures.exists('l2feed_bowl')) {
+      const bImg = this.textures.get('l2feed_bowl').getSourceImage();
+      const bw = 150, bh = bw * (bImg.height / bImg.width);
+      this.add.image(bowlX, bowlY, 'l2feed_bowl').setDisplaySize(bw, bh).setDepth(7);
+    }
+    this.add.text(bowlX, bowlY - 54, '🍽️ BOWL', { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(9);
     this._bowlZone = new Phaser.Geom.Circle(bowlX, bowlY, 78);
     this._bowlX = bowlX; this._bowlY = bowlY;
 
@@ -73,8 +76,8 @@ export class L2_FeedScene extends Phaser.Scene {
   _spawnFoods() {
     // 4 safe + 4 toxic, shuffled across the bottom shelf
     const items = [];
-    Phaser.Utils.Array.Shuffle([...SAFE]).slice(0, NEED).forEach(e => items.push({ emoji: e, safe: true }));
-    Phaser.Utils.Array.Shuffle([...TOXIC]).slice(0, 4).forEach(e => items.push({ emoji: e, safe: false }));
+    Phaser.Utils.Array.Shuffle([...SAFE]).slice(0, NEED).forEach(e => items.push({ tex: e, safe: true }));
+    Phaser.Utils.Array.Shuffle([...TOXIC]).slice(0, 4).forEach(e => items.push({ tex: e, safe: false }));
     Phaser.Utils.Array.Shuffle(items);
 
     const startX = 80, gap = 88, rowY = 200;
@@ -82,20 +85,23 @@ export class L2_FeedScene extends Phaser.Scene {
       const fx = startX + i * gap, fy = rowY;
       // little plate under each
       this.add.ellipse(fx, fy + 26, 52, 16, 0x2a2418, 0.6).setDepth(9);
-      const t = this.add.text(fx, fy, it.emoji, { fontSize: '40px' }).setOrigin(0.5).setDepth(12)
+      const img = this.textures.get(it.tex).getSourceImage();
+      const ih = 52, iw = ih * (img.width / img.height);
+      const t = this.add.image(fx, fy, it.tex).setDisplaySize(Math.min(iw, 66), ih).setDepth(12)
         .setInteractive({ draggable: true, useHandCursor: true });
       t.setData('safe', it.safe); t.setData('ox', fx); t.setData('oy', fy); t.setData('used', false);
+      t.setData('base', t.scaleX);
       this.tweens.add({ targets: t, y: fy - 6, duration: 600 + i * 40, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       return t;
     });
   }
 
   _wireDrag() {
-    this.input.on('dragstart', (p, o) => { if (!o.getData('used')) { this.tweens.killTweensOf(o); o.setDepth(40); o.setScale(1.25); } });
+    this.input.on('dragstart', (p, o) => { if (!o.getData('used')) { this.tweens.killTweensOf(o); o.setDepth(40); o.setScale(o.getData('base') * 1.25); } });
     this.input.on('drag', (p, o, dx, dy) => { if (!o.getData('used')) o.setPosition(dx, dy); });
     this.input.on('dragend', (p, o) => {
       if (this._done || o.getData('used')) return;
-      o.setScale(1);
+      o.setScale(o.getData('base'));
       if (Phaser.Geom.Circle.Contains(this._bowlZone, o.x, o.y)) {
         if (o.getData('safe')) this._feed(o);
         else                   this._badFood(o);
@@ -108,7 +114,8 @@ export class L2_FeedScene extends Phaser.Scene {
 
   _feed(o) {
     o.setData('used', true); o.disableInteractive();
-    this.tweens.add({ targets: o, x: this._bowlX, y: this._bowlY - 4, scale: 0.4, alpha: 0, duration: 280, ease: 'Cubic.easeIn', onComplete: () => o.destroy() });
+    const fb = o.getData('base');
+    this.tweens.add({ targets: o, x: this._bowlX, y: this._bowlY - 4, scaleX: fb * 0.4, scaleY: fb * 0.4, alpha: 0, duration: 280, ease: 'Cubic.easeIn', onComplete: () => o.destroy() });
     this._fed++;
     this._fedTxt.setText(`Fed:  ${this._fed} / ${NEED}`);
     this.cameras.main.flash(120, 30, 160, 50);

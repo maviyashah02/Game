@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
+import { openL2Modal } from './L2Modal.js';
 
 // L2 Checkpoint Overlay — Light the Fireflies (memory sequence / Simon-says)
 // Watch the firefly order, then repeat it. Each round adds one. Emits 'cp-done' when won.
@@ -14,21 +15,22 @@ export class L2_FirefliesScene extends Phaser.Scene {
   constructor() { super('L2_Fireflies'); }
 
   create() {
-    this.add.rectangle(W / 2, H / 2, W, H, 0x040810, 0.9).setDepth(0).setInteractive();
-    this.add.text(W / 2, 24, '✨ Light the Fireflies!', { fontSize: '18px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(2);
-    this._info = this.add.text(W / 2, 48, 'Watch the order…', { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#bfe0ff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
+    openL2Modal(this, '✨', 'Light the Fireflies!', null, 'l2mg_bg_fireflies');
+    this._info = this.add.text(W / 2, 78, 'Watch the order…', { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#bfe0ff', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
 
-    this._lifeTxt  = this.add.text(W - 14, 64, '❤️'.repeat(LIVES), { fontSize: '15px' }).setOrigin(1, 0).setDepth(5);
-    this._roundTxt = this.add.text(14, 64, 'Round 1 / ' + ROUNDS, { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#000', strokeThickness: 2 }).setDepth(5);
+    this._lifeTxt  = this.add.text(660, 98, '❤️'.repeat(LIVES), { fontSize: '14px' }).setOrigin(1, 0).setDepth(5);
+    this._roundTxt = this.add.text(140, 98, 'Round 1 / ' + ROUNDS, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#88ccff', stroke: '#000', strokeThickness: 2 }).setDepth(5);
 
-    // Fireflies
+    // Fireflies (real sprite — dim when off, bright when lit)
+    const fImg = this.textures.get('l2mg_firefly').getSourceImage();
+    const fw = 48, fh = 48 * (fImg.height / fImg.width);
     this._flies = POS.map((p, i) => {
-      const glow = this.add.circle(p.x, p.y, 30, 0xccff66, 0.12).setDepth(4);
-      const core = this.add.circle(p.x, p.y, 14, 0x6a7a20, 1).setDepth(5).setStrokeStyle(2, 0xaadd55, 0.7);
+      const spr = this.add.image(p.x, p.y, 'l2mg_firefly').setDisplaySize(fw, fh).setDepth(5).setAlpha(0.3);
+      const base = spr.scaleX;
       const hit  = this.add.circle(p.x, p.y, 34, 0xffffff, 0.001).setDepth(6).setInteractive({ useHandCursor: true });
-      this.tweens.add({ targets: glow, alpha: 0.22, scaleX: 1.2, scaleY: 1.2, duration: 1100 + i * 120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      spr.idle = this.tweens.add({ targets: spr, alpha: 0.5, duration: 1100 + i * 120, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
       hit.on('pointerdown', () => this._tap(i));
-      return { ...p, glow, core, hit };
+      return { ...p, spr, base, hit };
     });
 
     this._seq    = Array.from({ length: ROUNDS }, () => Phaser.Math.Between(0, POS.length - 1));
@@ -38,18 +40,18 @@ export class L2_FirefliesScene extends Phaser.Scene {
     this._phase  = 'show';
     this._done   = false;
 
-    this.cameras.main.fadeIn(300, 0, 0, 0);
     this.time.delayedCall(700, () => this._showSequence());
   }
 
   _flash(i, color = 0xffff88) {
     const f = this._flies[i];
-    this.tweens.killTweensOf(f.core);
-    f.core.setFillStyle(color, 1);
-    f.glow.setFillStyle(color, 0.5);
-    this.tweens.add({ targets: [f.core], scaleX: 1.7, scaleY: 1.7, duration: 200, yoyo: true,
-      onComplete: () => { f.core.setFillStyle(0x6a7a20, 1); f.glow.setFillStyle(0xccff66, 0.12); f.core.setScale(1); } });
-    this.tweens.add({ targets: f.glow, alpha: 0.55, scaleX: 1.6, scaleY: 1.6, duration: 200, yoyo: true });
+    this.tweens.killTweensOf(f.spr);
+    f.spr.setAlpha(1).setTint(color);
+    this.tweens.add({ targets: f.spr, scaleX: f.base * 1.6, scaleY: f.base * 1.6, duration: 200, yoyo: true,
+      onComplete: () => {
+        f.spr.setScale(f.base).clearTint().setAlpha(0.3);
+        f.spr.idle = this.tweens.add({ targets: f.spr, alpha: 0.5, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+      } });
   }
 
   _showSequence() {

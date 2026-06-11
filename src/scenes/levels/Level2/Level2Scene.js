@@ -444,13 +444,22 @@ export class Level2Scene extends BaseLevelScene {
 
     // ── Reach cage overlap ────────────────────────────────────────────────
     this.physics.add.overlap(this.shadow, this.gemmaInCage, () => {
-      if (this._levelDone) return;
+      if (this._levelDone || this._unlocking) return;
       if (this._hasKey1 && this._hasKey2) {
-        this._levelDone    = true;
+        // Freeze the player, then play the Fireflies ritual to light up the
+        // cage — only after winning it does the cage actually unlock.
+        this._unlocking = true;
         this._movementLocked = true;
         this.shadow.setVelocity(0, 0);
         if (this.shadow.body) this.shadow.body.setVelocity(0, 0);
-        this._unlockCage();
+        this._cp3Done = true;
+        this._launchCheckpoint('L2_Fireflies',
+          { emoji: '✨', title: 'Light the Fireflies', desc: 'Light the fireflies to unlock Gemma\'s cage!' },
+          () => {
+            this._levelDone = true;
+            this._showMessage('✨ The cage glows… it\'s unlocking! 🔓');
+            this._unlockCage();
+          });
       } else if (!this._hintedCage) {
         this._hintedCage = true;
         const missing = !this._hasKey1 ? 'Key 1' : 'Key 2';
@@ -464,9 +473,10 @@ export class Level2Scene extends BaseLevelScene {
     this._gemmaHPDecaying = false;
     this._movementLocked  = false;
     this._hintedCage      = false;
+    this._unlocking       = false;   // guards the cage Fireflies ritual
     this._cp1Done         = false;   // checkpoint-1 game (Road → Jungle)
     this._cp2Done         = false;   // checkpoint-2 game (Jungle → Dark Jungle)
-    this._cp3Done         = false;   // checkpoint-3 game (deep Dark Jungle)
+    this._cp3Done         = false;   // checkpoint-3 game (cage unlock — Light the Fireflies)
 
     this.time.delayedCall(800, () => this._showMessage('Stage 1 — Road! Find Key 1 at the end! 🔑'));
 
@@ -690,18 +700,7 @@ export class Level2Scene extends BaseLevelScene {
         });
     }
 
-    // ── Checkpoint 3 (deep Dark Jungle) — Light the Fireflies ────────────────
-    // Triggers at 15300 (solid ground, clear of the spike at 15500) so the
-    // player isn't standing on a spike when the mini-game closes.
-    if (!this._cp3Done && sx > 15300) {
-      this._cp3Done = true;
-      this._launchCheckpoint('L2_Fireflies',
-        { emoji: '✨', title: 'Light the Fireflies', desc: 'Watch the firefly order, then repeat it!' },
-        () => {
-          this._saveCheckpoint(15300, 360);
-          this._showMessage('✅ The path is lit! Now mind the spikes ahead! 🐾');
-        });
-    }
+    // (Checkpoint 3 — Light the Fireflies — now plays at the cage, see cage overlap below)
 
     // ── Zone 3 entry ──────────────────────────────────────────────────────
     if (!this._zone3Entered && sx > 12000) {

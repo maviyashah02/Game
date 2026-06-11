@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
+import { openL2Modal } from './L2Modal.js';
 
 // L2 Checkpoint Overlay — Dodge the Hazards (quick reaction / whack-a-mole)
 // Tap each creature before it bites you. Emits 'cp-done' when won.
@@ -7,37 +8,32 @@ const HAZARDS = ['🐍', '🕷️', '🦂', '🦟'];
 const NEED  = 10;    // creatures to whack
 const LIVES = 3;
 const SPOTS = [
-  { x: 150, y: 195 }, { x: 330, y: 185 }, { x: 510, y: 195 }, { x: 660, y: 185 },
-  { x: 150, y: 320 }, { x: 330, y: 330 }, { x: 510, y: 320 }, { x: 660, y: 330 },
+  { x: 195, y: 200 }, { x: 335, y: 190 }, { x: 475, y: 200 }, { x: 615, y: 190 },
+  { x: 195, y: 320 }, { x: 335, y: 330 }, { x: 475, y: 320 }, { x: 615, y: 330 },
 ];
 
 export class L2_DodgeScene extends Phaser.Scene {
   constructor() { super('L2_Dodge'); }
 
   create() {
-    this.add.rectangle(W / 2, H / 2, W, H, 0x05080a, 0.84).setDepth(0).setInteractive();
-    this.add.rectangle(W / 2, 26, W, 52, 0x0a1018, 0.9).setDepth(1);
-    this.add.text(W / 2, 18, '🐍 Dodge the Hazards!', { fontSize: '18px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(2);
-    this.add.text(W / 2, 40, 'Tap each creature FAST — before it bites you!', { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8d0e0', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
+    openL2Modal(this, '🐍', 'Dodge the Hazards!', 'Tap each creature FAST — before it bites you!', 'l2mg_bg_dodge');
 
-    // Bushes at each spot
+    // Real bush sprite at each spot (creature pops up over it)
+    const bImg = this.textures.get('l2mg_bush').getSourceImage();
+    const bw = 86, bh = 86 * (bImg.height / bImg.width);
     SPOTS.forEach(s => {
-      const g = this.add.graphics().setDepth(3);
-      g.fillStyle(0x12260e, 1); g.fillEllipse(s.x, s.y + 34, 92, 30);
-      g.fillStyle(0x1c3a16, 1); g.fillEllipse(s.x - 18, s.y + 26, 40, 26);
-      g.fillStyle(0x224418, 1); g.fillEllipse(s.x + 16, s.y + 28, 44, 28);
+      this.add.image(s.x, s.y + 40, 'l2mg_bush').setOrigin(0.5, 1).setDisplaySize(bw, bh).setDepth(3);
     });
 
     this._whacked = 0; this._lives = LIVES; this._done = false;
     this._window = 1450;                 // ms a hazard stays before biting (ramps down)
     this._active = new Array(SPOTS.length).fill(null);
 
-    this._whackTxt = this.add.text(14, 60, `Whacked:  0 / ${NEED}`, { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#000', strokeThickness: 2 }).setDepth(6);
-    this._lifeTxt  = this.add.text(W - 14, 60, '❤️'.repeat(LIVES), { fontSize: '15px' }).setOrigin(1, 0).setDepth(6);
+    this._whackTxt = this.add.text(140, 98, `Whacked:  0 / ${NEED}`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#000', strokeThickness: 2 }).setDepth(6);
+    this._lifeTxt  = this.add.text(660, 98, '❤️'.repeat(LIVES), { fontSize: '14px' }).setOrigin(1, 0).setDepth(6);
 
     this._spawnTimer = this.time.addEvent({ delay: 820, loop: true, callback: () => this._spawn() });
     this.time.delayedCall(250, () => this._spawn());
-    this.cameras.main.fadeIn(300, 0, 0, 0);
   }
 
   _spawn() {

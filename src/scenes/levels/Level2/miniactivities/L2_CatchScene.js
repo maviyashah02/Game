@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { W, H } from '../../../../config/GameConfig.js';
+import { openL2Modal } from './L2Modal.js';
 
 // L2 Checkpoint Overlay — Catch the Supplies (skill / reaction)
 // Launched on top of the paused platformer. Emits 'cp-done' when won.
@@ -14,28 +15,26 @@ export class L2_CatchScene extends Phaser.Scene {
   constructor() { super('L2_Catch'); }
 
   create() {
-    // Dim backdrop over the frozen platformer (also swallows stray input)
-    this.add.rectangle(W / 2, H / 2, W, H, 0x05080a, 0.84).setDepth(0).setInteractive();
-    this.add.rectangle(W / 2, 26, W, 52, 0x0a1018, 0.9).setDepth(1);
-    this.add.text(W / 2, 18, '🧺 Catch the Supplies!', { fontSize: '18px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 3 }).setOrigin(0.5).setDepth(2);
-    this.add.text(W / 2, 40, 'Move with the mouse or ← →. Catch supplies, dodge rocks!', { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#c8d0e0', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(2);
+    // Level-1-style contained modal with a themed background
+    openL2Modal(this, '🧺', 'Catch the Supplies!', 'Move with the mouse or ← →. Catch supplies, dodge rocks!', 'l2mg_bg_catch');
 
-    // Ground line
-    this.add.rectangle(W / 2, H - 22, W, 6, 0x2a3a18, 1).setDepth(1);
+    // Play bounds = inside the modal card
+    this._L = 150; this._R = 650; this._top = 96; this._floor = 408;
 
-    // Basket
-    this._basket = this.add.text(W / 2, H - 44, '🧺', { fontSize: '46px' }).setOrigin(0.5).setDepth(10);
+    // Basket (real sprite)
+    this._basket = this.add.image(W / 2, this._floor - 12, 'l2mg_basket').setDisplaySize(62, 58).setDepth(10);
+    this._basketBase = this._basket.scaleX;
     this._basketX = W / 2;
 
     // State + HUD
     this._caught = 0; this._lives = LIVES; this._timeLeft = TIME; this._done = false;
     this._items = [];
-    this._caughtTxt = this.add.text(14, 60, `Caught:  0 / ${NEED}`, { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#000', strokeThickness: 2 }).setDepth(5);
-    this._lifeTxt   = this.add.text(14, 82, '❤️'.repeat(LIVES), { fontSize: '14px' }).setDepth(5);
-    this._timeTxt   = this.add.text(W - 14, 60, `⏱ ${TIME}s`, { fontSize: '15px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 2 }).setOrigin(1, 0).setDepth(5);
+    this._caughtTxt = this.add.text(140, 96, `Caught:  0 / ${NEED}`, { fontSize: '13px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#000', strokeThickness: 2 }).setDepth(5);
+    this._lifeTxt   = this.add.text(140, 116, '❤️'.repeat(LIVES), { fontSize: '13px' }).setDepth(5);
+    this._timeTxt   = this.add.text(660, 96, `⏱ ${TIME}s`, { fontSize: '14px', fontFamily: 'Georgia, serif', color: '#f5c87a', stroke: '#000', strokeThickness: 2 }).setOrigin(1, 0).setDepth(5);
 
     // Controls
-    this.input.on('pointermove', p => { this._basketX = Phaser.Math.Clamp(p.x, 40, W - 40); });
+    this.input.on('pointermove', p => { this._basketX = Phaser.Math.Clamp(p.x, this._L, this._R); });
     this._keys = this.input.keyboard.addKeys('LEFT,RIGHT,A,D');
 
     // Falling speed ramps up
@@ -50,15 +49,14 @@ export class L2_CatchScene extends Phaser.Scene {
     }});
 
     this._spawn(); this._spawn();
-    this.cameras.main.fadeIn(300, 0, 0, 0);
   }
 
   _spawn() {
     if (this._done) return;
     const bad = Math.random() < 0.34;
     const emoji = bad ? Phaser.Math.RND.pick(BAD) : Phaser.Math.RND.pick(GOOD);
-    const x = 40 + Math.random() * (W - 80);
-    const t = this.add.text(x, -20, emoji, { fontSize: '34px' }).setOrigin(0.5).setDepth(8);
+    const x = this._L + Math.random() * (this._R - this._L);
+    const t = this.add.text(x, this._top, emoji, { fontSize: '30px' }).setOrigin(0.5).setDepth(8);
     this._items.push({ t, vy: this._fallSpeed * (0.85 + Math.random() * 0.4), bad });
   }
 
@@ -67,23 +65,23 @@ export class L2_CatchScene extends Phaser.Scene {
     const d = Math.min(delta, 40);
     // Keyboard movement
     const step = 0.45 * d;
-    if (this._keys.LEFT.isDown  || this._keys.A.isDown) this._basketX = Math.max(40, this._basketX - step);
-    if (this._keys.RIGHT.isDown || this._keys.D.isDown) this._basketX = Math.min(W - 40, this._basketX + step);
+    if (this._keys.LEFT.isDown  || this._keys.A.isDown) this._basketX = Math.max(this._L, this._basketX - step);
+    if (this._keys.RIGHT.isDown || this._keys.D.isDown) this._basketX = Math.min(this._R, this._basketX + step);
     this._basket.x = this._basketX;
 
-    const catchY = H - 58;
+    const catchY = this._floor - 38;
     for (let i = this._items.length - 1; i >= 0; i--) {
       const it = this._items[i];
       it.t.y += it.vy * d;
       // caught?
-      if (it.t.y >= catchY && it.t.y <= catchY + 46 && Math.abs(it.t.x - this._basketX) < 46) {
+      if (it.t.y >= catchY && it.t.y <= catchY + 40 && Math.abs(it.t.x - this._basketX) < 42) {
         this._items.splice(i, 1);
         if (it.bad) this._hit(it.t);
         else        this._grab(it.t);
         continue;
       }
-      // missed off-bottom
-      if (it.t.y > H + 24) {
+      // missed past the floor
+      if (it.t.y > this._floor + 6) {
         this._items.splice(i, 1);
         it.t.destroy();
       }
@@ -94,8 +92,8 @@ export class L2_CatchScene extends Phaser.Scene {
     t.destroy();
     this._caught++;
     this._caughtTxt.setText(`Caught:  ${this._caught} / ${NEED}`);
-    this.tweens.add({ targets: this._basket, scaleX: 1.2, scaleY: 0.85, duration: 90, yoyo: true });
-    const plus = this.add.text(this._basketX, H - 78, '+1', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(11);
+    this.tweens.add({ targets: this._basket, scaleX: this._basketBase * 1.18, scaleY: this._basketBase * 0.85, duration: 90, yoyo: true });
+    const plus = this.add.text(this._basketX, this._floor - 50, '+1', { fontSize: '16px', fontFamily: 'Georgia, serif', color: '#88ff88', stroke: '#000', strokeThickness: 2 }).setOrigin(0.5).setDepth(11);
     this.tweens.add({ targets: plus, y: plus.y - 26, alpha: 0, duration: 600, onComplete: () => plus.destroy() });
     if (this._caught >= NEED) this._win();
   }

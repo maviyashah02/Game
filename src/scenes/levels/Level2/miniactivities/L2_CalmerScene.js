@@ -9,11 +9,12 @@ export class L2_CalmerScene extends Phaser.Scene {
     this.cameras.main.setBackgroundColor('#0d0806');
     this.cameras.main.fadeIn(600, 0, 0, 0);
 
-    if (this.textures.exists('jungle_bg')) {
+    if (this.textures.exists('l2cal_bg')) {
+      this.add.image(W / 2, H / 2, 'l2cal_bg').setDisplaySize(W, H).setDepth(-5);
+    } else if (this.textures.exists('jungle_bg')) {
       this.add.image(400, 225, 'jungle_bg').setDisplaySize(800, 450).setAlpha(0.4).setTint(0x0a150a).setDepth(-5);
     }
-    this.add.rectangle(400, 225, 800, 450, 0x000000, 0.5).setDepth(-4);
-    this.add.tileSprite(400, H - 11, 800, 70, 'ground').setTileScale(0.14, 0.14).setDepth(5);
+    this.add.rectangle(400, 225, 800, 450, 0x000000, 0.22).setDepth(-4);   // gentle darken for text legibility
 
     // Gleeda on left, Gemma in center (scared)
     // y=422/421: grass surface at 418, +4/+3 to compensate transparent bottom padding in PNGs
@@ -33,9 +34,9 @@ export class L2_CalmerScene extends Phaser.Scene {
     }).setOrigin(0.5).setDepth(11);
 
     const choices = [
-      { icon: '🗣️', label: 'Speak softly',  desc: 'Calm voice',  color: 0x1a4a14, border: 0x4a9a38, correct: true  },
-      { icon: '🐶',  label: 'Bark loudly',   desc: 'Make noise',  color: 0x4a1a14, border: 0xaa3838, correct: false },
-      { icon: '🏃',  label: 'Run towards',   desc: 'Move fast',   color: 0x1a2a4a, border: 0x3a6aaa, correct: false },
+      { tex: 'l2cal_speak', label: 'Speak softly', desc: 'Calm voice', color: 0x163a12, border: 0x4a9a38, correct: true  },
+      { tex: 'l2cal_bark',  label: 'Bark loudly',  desc: 'Make noise', color: 0x3a1410, border: 0xaa3838, correct: false },
+      { tex: 'l2cal_run',   label: 'Run towards',  desc: 'Move fast',  color: 0x142440, border: 0x3a6aaa, correct: false },
     ];
 
     this._done = false;
@@ -43,26 +44,34 @@ export class L2_CalmerScene extends Phaser.Scene {
     choices.forEach((c, i) => {
       const bx = 160 + i * 240;
       const by = 300;
+      const cw = 200, ch = 184;
 
-      const card = this.add.rectangle(bx, by, 200, 180, c.color, 0.95)
-        .setDepth(10).setStrokeStyle(3, c.border, 1).setInteractive({ useHandCursor: true });
+      // Rounded storybook card (graphics) inside a container so it scales as one
+      const cont = this.add.container(bx, by).setDepth(10);
+      const panel = this.add.graphics();
+      panel.fillStyle(c.color, 0.92); panel.fillRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+      panel.lineStyle(3, c.border, 1); panel.strokeRoundedRect(-cw / 2, -ch / 2, cw, ch, 16);
+      panel.fillStyle(0xffffff, 0.06); panel.fillRoundedRect(-cw / 2 + 6, -ch / 2 + 6, cw - 12, 30, 10);
 
-      this.add.text(bx, by - 42, c.icon,  { fontSize: '48px' }).setOrigin(0.5).setDepth(11);
-      this.add.text(bx, by + 42, c.label, { fontSize: '15px', fontFamily: 'Georgia, serif', color: '#f5e0b0' }).setOrigin(0.5).setDepth(11);
-      this.add.text(bx, by + 62, c.desc,  { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#a09070' }).setOrigin(0.5).setDepth(11);
+      const ic = this.textures.get(c.tex).getSourceImage();
+      const ih = 78, iw = ih * (ic.width / ic.height);
+      const icon = this.add.image(0, -34, c.tex).setDisplaySize(Math.min(iw, 130), ih);
+      const lbl = this.add.text(0, 44, c.label, { fontSize: '15px', fontFamily: 'Georgia, serif', color: '#f5e0b0' }).setOrigin(0.5);
+      const dsc = this.add.text(0, 66, c.desc, { fontSize: '11px', fontFamily: 'Georgia, serif', color: '#cdbfa0' }).setOrigin(0.5);
+      cont.add([panel, icon, lbl, dsc]);
 
-      card.on('pointerover', () => { card.setStrokeStyle(4, 0xf5c87a, 1); card.setScale(1.04); });
-      card.on('pointerout',  () => { card.setStrokeStyle(3, c.border, 1); card.setScale(1); });
-
-      card.on('pointerup', () => {
+      const hit = this.add.rectangle(bx, by, cw, ch, 0xffffff, 0.001).setDepth(11).setInteractive({ useHandCursor: true });
+      hit.on('pointerover', () => cont.setScale(1.05));
+      hit.on('pointerout',  () => cont.setScale(1));
+      hit.on('pointerup', () => {
         if (this._done) return;
         this._done = true;
         if (c.correct) this._correct(gemmaImg, bx, by);
-        else           this._wrong(card, bx, by);
+        else           this._wrong(cont, bx, by);
       });
 
-      card.setScale(0);
-      this.tweens.add({ targets: card, scale: 1, duration: 420, delay: 300 + i * 160, ease: 'Back.easeOut' });
+      cont.setScale(0);
+      this.tweens.add({ targets: cont, scale: 1, duration: 420, delay: 300 + i * 160, ease: 'Back.easeOut' });
     });
 
     this.add.text(400, 420, 'Choose wisely — Gemma is scared!', {
@@ -101,15 +110,20 @@ export class L2_CalmerScene extends Phaser.Scene {
     });
   }
 
-  _wrong(card, bx, by) {
+  _wrong(cont, bx, by) {
     this.cameras.main.shake(400, 0.012);
-    card.setFillStyle(0x5a1010);
+
+    // red flash over the chosen card
+    const flash = this.add.graphics();
+    flash.fillStyle(0xff2020, 0.4); flash.fillRoundedRect(-100, -92, 200, 184, 16);
+    cont.add(flash);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 550, onComplete: () => flash.destroy() });
 
     const cross = this.add.text(bx, by - 130, '❌ That scared her more!', {
       fontSize: '17px', fontFamily: 'Georgia, serif', color: '#ff8888', stroke: '#0a0502', strokeThickness: 3
     }).setOrigin(0.5).setDepth(20).setAlpha(0);
     this.tweens.add({ targets: cross, alpha: 1, duration: 300 });
-    this.tweens.add({ targets: card, x: card.x + 8, duration: 80, yoyo: true, repeat: 4 });
+    this.tweens.add({ targets: cont, x: bx + 8, duration: 80, yoyo: true, repeat: 4 });
 
     this.time.delayedCall(1600, () => {
       this.cameras.main.fadeOut(400, 0, 0, 0);

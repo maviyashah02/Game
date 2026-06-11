@@ -90,6 +90,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
     this._rightHeld     = false;
     this._signalState   = 'red';
     this._signalChecked = false;
+    this._signalForced  = false;
     this._holeBlocking  = false;
     this._rainDrops     = [];
 
@@ -190,6 +191,18 @@ export class L3_CarJourneyScene extends Phaser.Scene {
           else                       this._showBridgePuzzle(h);
         });
       }
+    }
+
+    // ── Signal RED as the player approaches, then GREEN after 6 s so they can go ─
+    if (!this._signalForced && this._distance >= CFG.STOP_LINE_DIST - 650) {
+      this._signalForced = true;
+      this._signalState = 'red';
+      this._updateSignalVisual();
+      this.time.delayedCall(6000, () => {
+        if (this._done) return;
+        this._signalState = 'green';
+        this._updateSignalVisual();
+      });
     }
 
     // ── Traffic signal crossing ───────────────────────────────────────────────
@@ -885,7 +898,7 @@ export class L3_CarJourneyScene extends Phaser.Scene {
   }
 
   _switchSignal() {
-    if (this._done) return;
+    if (this._done || this._signalForced) return;   // stop toggling once forced red for the approach
     this._signalState = this._signalState === 'red' ? 'green' : 'red';
     this._updateSignalVisual();
     this.time.delayedCall(
@@ -945,24 +958,23 @@ export class L3_CarJourneyScene extends Phaser.Scene {
       color: '#88ffaa', stroke: '#000', strokeThickness: 2
     }).setOrigin(0.5, 1).setDepth(9);
 
-    // ── Road-end barrier at HOSPITAL_DIST (road stops here) ──────────────────
-    const endG = this.add.graphics().setDepth(10);
-    // Striped end barrier spanning full road height
-    const BW = 28;
-    for (let bi = 0; bi < 8; bi++) {
-      endG.fillStyle(bi % 2 === 0 ? 0xffcc00 : 0x1a1a22, 1);
-      endG.fillRect(-BW / 2, roadTop + bi * 10, BW, 10);
+    // ── FINISH LINE painted on the road (driving ends here → hospital starts) ──
+    // Depth 3 = on the road surface, BEHIND the car (depth 9) so the car is never
+    // hidden — it simply drives onto the line.
+    const endG = this.add.graphics().setDepth(3);
+    const CW = 12, COLS = 2, ROWS = Math.ceil(roadH / 10);
+    for (let ci = 0; ci < COLS; ci++) {
+      for (let bi = 0; bi < ROWS; bi++) {
+        endG.fillStyle((ci + bi) % 2 === 0 ? 0x111118 : 0xffffff, 1);
+        endG.fillRect(-CW + ci * CW, roadTop + bi * 10, CW, 10);
+      }
     }
-    // Left/right edge posts
-    endG.fillStyle(0x888898, 1);
-    endG.fillRect(-BW / 2 - 4, roadTop, 6, roadH);
-    endG.fillRect( BW / 2 - 2, roadTop, 6, roadH);
-    // "END" text above barrier
     endG.x = CFG.CAR_X + CFG.HOSPITAL_DIST;
     this._roadEndGfx = endG;
+    // Floating FINISH banner above the road (clear of the car)
     this._roadEndTxt = this.add.text(
-      CFG.CAR_X + CFG.HOSPITAL_DIST, roadTop - 6, '🏁 HOSPITAL AHEAD',
-      { fontSize: '10px', fontFamily: 'Georgia, serif', color: '#88ffaa', stroke: '#000', strokeThickness: 2 }
+      CFG.CAR_X + CFG.HOSPITAL_DIST, roadTop - 58, '🏁 FINISH',
+      { fontSize: '12px', fontFamily: 'Georgia, serif', color: '#ffffff', stroke: '#000', strokeThickness: 3 }
     ).setOrigin(0.5, 1).setDepth(10);
   }
 

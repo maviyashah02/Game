@@ -21,43 +21,52 @@ export class MenuScene extends Phaser.Scene {
     // Continue: cy=330, h=38  → top edge at 311  (gap 19px)
     // Settings: cy=378, h=38  → top edge at 359  (gap 21px)
 
-    this._playBtn(158, 240, '🐾 Level 1', () => {
+    this._playBtn(158, 194, '🐾 Level 1', () => {
       this.registry.set('lives', 3);
       this.registry.set('points', 0);
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.scene.start('IntroVideo'));
     });
 
-    this._playBtn(158, 300, '👧 Level 2', () => {
+    this._playBtn(158, 243, '👧 Level 2', () => {
       this.registry.set('lives', 3);
       this.registry.set('points', 0);
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.scene.start('Cinematic2'));
     });
 
-    this._playBtn(158, 330, '🚗 Level 3', () => {
+    this._playBtn(158, 292, '🚗 Level 3', () => {
       this.registry.set('l3_health', 100);
       this.registry.set('l3_coins',  0);
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.scene.start('Level3'));
     });
 
-    this._playBtn(158, 390, '🏠 Level 4', () => {
+    this._playBtn(158, 341, '🏠 Level 4', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.scene.start('Level4'));
     });
 
-    this._secondaryBtn(152, 428, '📖', 'Continue', () => this._showContinueMsg());
-    this._secondaryBtn(152, 440, '⚙', 'Settings',  () => this._showSettings());
+    this._playBtn(158, 390, '🐶 Level 5', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('L5_EquipmentRun'));
+    });
 
-    // ── Level 3 zone test panel — centre ─────────────────────────────────
+    this._secondaryBtn(92,  432, '📖', 'Continue', () => this._showContinueMsg(), 126);
+    this._secondaryBtn(224, 432, '⚙', 'Settings',  () => this._showSettings(),    126);
+
+    // ── Dev test panel (L3 zones + L4 jumps) — centre ────────────────────
     const tp3G = this.add.graphics().setDepth(9);
     tp3G.fillStyle(0x020810, 0.72);
-    tp3G.fillRoundedRect(302, 195, 192, 195, 12);
+    tp3G.fillRoundedRect(302, 195, 192, 226, 12);
     tp3G.lineStyle(1.5, 0x4488cc, 0.55);
-    tp3G.strokeRoundedRect(302, 195, 192, 195, 12);
+    tp3G.strokeRoundedRect(302, 195, 192, 226, 12);
 
-    this.add.text(398, 214, '🔧  L3 Zone Jump', {
+    this.add.text(398, 214, '🔧  L3 / L4 Test', {
       fontSize: '12px', fontFamily: 'Georgia, serif',
       color: '#88ccff', stroke: '#010408', strokeThickness: 2
     }).setOrigin(0.5).setDepth(12);
@@ -120,6 +129,20 @@ export class MenuScene extends Phaser.Scene {
       this.cameras.main.fadeOut(500, 0, 0, 0);
       this.time.delayedCall(520, () => this.scene.start('L2_Calmer'));
     });
+
+    // ── Level 4 test jumps (run vs. build scene) ─────────────────────────
+    this._secondaryBtn(398, 332, '🏠', 'L4 Run', () => {
+      this.registry.set('lives', 3);
+      this.registry.set('points', 0);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('Level4'));
+    });
+
+    this._secondaryBtn(398, 374, '🔨', 'L4 Build', () => {
+      this.registry.set('points', 0);
+      this.cameras.main.fadeOut(500, 0, 0, 0);
+      this.time.delayedCall(520, () => this.scene.start('L4_Decorate'));
+    });
   }
 
   // ── Coral-red Play button ─────────────────────────────────────────────────
@@ -172,8 +195,8 @@ export class MenuScene extends Phaser.Scene {
   }
 
   // ── Beige secondary button ────────────────────────────────────────────────
-  _secondaryBtn(cx, cy, icon, label, cb) {
-    const BW = 182, BH = 36, R = 10;
+  _secondaryBtn(cx, cy, icon, label, cb, bw = 182) {
+    const BW = bw, BH = 36, R = 10;
     const bx = cx - BW / 2, by = cy - BH / 2;
 
     const g = this.add.graphics().setDepth(10);

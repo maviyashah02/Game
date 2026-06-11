@@ -28,6 +28,17 @@ import { L3_EndScene }           from './scenes/levels/Level3/L3_EndScene.js';
 // Level 4
 import { Level4Scene }       from './scenes/levels/Level4/Level4Scene.js';
 import { L4_DecorateScene }  from './scenes/levels/Level4/L4_DecorateScene.js';
+import { L4_CP1Scene }       from './scenes/levels/Level4/L4_CP1Scene.js';
+import { L4_CP2Scene }       from './scenes/levels/Level4/L4_CP2Scene.js';
+import { L4_CP3Scene }       from './scenes/levels/Level4/L4_CP3Scene.js';
+// Level 5 — Gamma's Seven Puppies (equipment run → garage treatment → puppies → nursery → final)
+import { L5_EquipmentRunScene } from './scenes/levels/Level5/L5_EquipmentRunScene.js';
+import { L5_CP1Scene }          from './scenes/levels/Level5/L5_CP1Scene.js';
+import { L5_CP2Scene }          from './scenes/levels/Level5/L5_CP2Scene.js';
+import { L5_CP3Scene }          from './scenes/levels/Level5/L5_CP3Scene.js';
+import { L5_DecorateScene }     from './scenes/levels/Level5/L5_DecorateScene.js';
+import { Level5Scene }          from './scenes/levels/Level5/Level5Scene.js';
+import { L5_NurseryScene }      from './scenes/levels/Level5/L5_NurseryScene.js';
 import { W, H }                  from './config/GameConfig.js';
 
 // ── Shared touch state: HTML footer buttons write here, Phaser reads here ──
@@ -81,7 +92,7 @@ const config = {
   roundPixels: false,
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH,
+    autoCenter: Phaser.Scale.NO_CENTER,   // CSS flex centers the canvas (avoids double-centering offset)
   },
   physics: {
     default: 'arcade',
@@ -122,7 +133,18 @@ const config = {
     L3_EndScene,
     // Level 4
     Level4Scene,
+    L4_CP1Scene,
+    L4_CP2Scene,
+    L4_CP3Scene,
     L4_DecorateScene,
+    // Level 5
+    L5_EquipmentRunScene,
+    L5_CP1Scene,
+    L5_CP2Scene,
+    L5_CP3Scene,
+    L5_DecorateScene,
+    Level5Scene,
+    L5_NurseryScene,
   ]
 };
 

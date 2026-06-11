@@ -1,9 +1,11 @@
 import Phaser from 'phaser';
 
 export function generateL4Assets(scene) {
-  // Guard — skip if already generated this session
-  if (scene.textures.exists('l4_garage_bg')) return;
+  // Guard — skip if already generated this session (key never loaded as a real image)
+  if (scene.textures.exists('l4_doghouse')) return;
   const g = scene.make.graphics({ add: false });
+  // Only generate a texture if a real image wasn't already loaded under that key
+  const gen = (k, w, h) => { if (!scene.textures.exists(k)) g.generateTexture(k, w, h); };
 
   // ══════════════════════════════════════════════════════════════════════════════
   // GARAGE INTERIOR BACKGROUND (490 × 320)
@@ -150,7 +152,7 @@ export function generateL4Assets(scene) {
 
   // Floor baseboard
   g.fillStyle(0xc0b8b0, 1); g.fillRect(0, 198, 490, 4);
-  g.generateTexture('l4_garage_bg', 490, 320);
+  gen('l4_garage_bg', 490, 320);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // DOGHOUSE — enhanced for indoor use (220 × 210)
@@ -192,7 +194,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0x7a4a24, 0.45); g.fillRect(68, 197, 84, 4);
   // Base (no grass — sits on concrete floor)
   g.fillStyle(0x9a8a7a, 1); g.fillRect(0, 206, 220, 6);
-  g.generateTexture('l4_doghouse', 220, 212);
+  gen('l4_doghouse', 220, 212);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // PINK CAR (140 × 92) — parked outside, seen through garage door gap
@@ -212,7 +214,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0x555555, 1); g.fillCircle(28, 74, 10); g.fillCircle(102, 74, 10);
   g.fillStyle(0xcccccc, 1); g.fillCircle(28, 74, 5);  g.fillCircle(102, 74, 5);
   g.fillStyle(0xffffff, 0.5); g.fillCircle(26, 72, 2); g.fillCircle(100, 72, 2);
-  g.generateTexture('l4_car', 140, 92);
+  gen('l4_car', 140, 92);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // DRAG ITEMS — all transparent bg
@@ -226,7 +228,7 @@ export function generateL4Assets(scene) {
   g.lineStyle(3, 0xc44080, 0.7); g.strokeEllipse(50, 35, 96, 66);
   g.fillStyle(0xc03870, 0.55);
   g.fillCircle(50,38,8); g.fillCircle(39,28,5); g.fillCircle(61,28,5); g.fillCircle(34,36,5); g.fillCircle(66,36,5);
-  g.generateTexture('l4_bed', 100, 70);
+  gen('l4_bed', 100, 70);
 
   // Food Bowl (84 × 72)
   g.clear();
@@ -236,7 +238,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0x7a3a14, 1);
   [[30,26],[46,22],[42,30],[56,28],[36,32]].forEach(([cx,cy]) => g.fillCircle(cx, cy, 5));
   g.lineStyle(2, 0xdd4434, 0.5); g.strokeEllipse(42, 26, 76, 22);
-  g.generateTexture('l4_food_bowl', 84, 72);
+  gen('l4_food_bowl', 84, 72);
 
   // Water Bowl (84 × 72)
   g.clear();
@@ -246,14 +248,14 @@ export function generateL4Assets(scene) {
   g.fillStyle(0x58aae0, 0.6); g.fillEllipse(34, 24, 28, 9);
   g.fillStyle(0x7cc4ee, 0.4); g.fillEllipse(54, 28, 16, 6);
   g.lineStyle(2, 0x3898dc, 0.5); g.strokeEllipse(42, 26, 76, 22);
-  g.generateTexture('l4_water_bowl', 84, 72);
+  gen('l4_water_bowl', 84, 72);
 
   // Bone (100 × 60)
   g.clear();
   g.fillStyle(0xefe4cc, 1); g.fillRect(18,22,64,16);
   g.fillCircle(20,22,14); g.fillCircle(20,38,14); g.fillCircle(80,22,14); g.fillCircle(80,38,14);
   g.fillStyle(0xd8cdb2, 0.5); g.fillCircle(14,18,8); g.fillCircle(14,42,8); g.fillCircle(86,18,8); g.fillCircle(86,42,8);
-  g.generateTexture('l4_bone', 100, 60);
+  gen('l4_bone', 100, 60);
 
   // Ball (72 × 72)
   g.clear();
@@ -262,7 +264,7 @@ export function generateL4Assets(scene) {
   g.lineStyle(3, 0xffffff, 0.75);
   g.beginPath(); g.arc(36,36,27,-0.75,0.75); g.strokePath();
   g.beginPath(); g.arc(36,36,27,Math.PI-0.75,Math.PI+0.75); g.strokePath();
-  g.generateTexture('l4_ball', 72, 72);
+  gen('l4_ball', 72, 72);
 
   // Flower Pot (76 × 90) — Gleeda brought it to brighten the garage
   g.clear();
@@ -275,7 +277,7 @@ export function generateL4Assets(scene) {
   [[14,12,0xff5577],[38,4,0xffcc33],[62,14,0xff88cc]].forEach(([fx,fy,fc]) => {
     g.fillStyle(fc,1); g.fillCircle(fx,fy,9); g.fillStyle(0xffee44,1); g.fillCircle(fx,fy,4);
   });
-  g.generateTexture('l4_flower_pot', 76, 90);
+  gen('l4_flower_pot', 76, 90);
 
   // Welcome Sign (96 × 100)
   g.clear();
@@ -286,7 +288,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0x7a4e18, 0.45);
   g.fillCircle(20,22,5); g.fillCircle(14,16,3); g.fillCircle(22,15,3); g.fillCircle(11,21,3); g.fillCircle(24,22,3);
   g.fillCircle(76,50,5); g.fillCircle(70,44,3); g.fillCircle(78,43,3); g.fillCircle(67,49,3); g.fillCircle(80,50,3);
-  g.generateTexture('l4_welcome_sign', 96, 100);
+  gen('l4_welcome_sign', 96, 100);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // PHASE 2 — PLANT WATERING ITEMS
@@ -303,7 +305,7 @@ export function generateL4Assets(scene) {
   g.lineStyle(5, 0x1a6aaa, 1);
   g.beginPath(); g.arc(30, 20, 18, -0.4, -Math.PI + 0.4, true); g.strokePath();
   g.fillStyle(0x66ccff, 0.8); g.fillCircle(62,8,3); g.fillCircle(67,5,2); g.fillCircle(57,6,2); g.fillCircle(64,2,2);
-  g.generateTexture('l4_watering_can', 70, 66);
+  gen('l4_watering_can', 70, 66);
 
   // Wilted Plant (36 × 58) — houseplant drooping
   g.clear();
@@ -311,7 +313,7 @@ export function generateL4Assets(scene) {
   g.lineStyle(2, 0x8aaa3a, 0.6); g.lineBetween(14,38,6,32);
   g.fillStyle(0xccbbaa, 0.8); [[30,8],[28,14],[30,20],[34,14],[30,6]].forEach(([px,py]) => g.fillEllipse(px,py,10,7));
   g.fillStyle(0xbbaa88, 1); g.fillCircle(30,13,5);
-  g.generateTexture('l4_wilted_flower', 36, 58);
+  gen('l4_wilted_flower', 36, 58);
 
   // Bloomed plant — red
   g.clear();
@@ -320,7 +322,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0xff2244, 1);
   for (let a=0; a<6; a++) { const ang=(a/6)*Math.PI*2; g.fillEllipse(18+Math.cos(ang)*11, 18+Math.sin(ang)*11, 12, 18); }
   g.fillStyle(0xffcc22, 1); g.fillCircle(18,18,7); g.fillStyle(0xffee88,0.7); g.fillCircle(16,16,3);
-  g.generateTexture('l4_bloom_r', 36, 58);
+  gen('l4_bloom_r', 36, 58);
 
   // Bloomed plant — yellow
   g.clear();
@@ -329,7 +331,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0xffcc00, 1);
   for (let a=0; a<8; a++) { const ang=(a/8)*Math.PI*2; g.fillEllipse(18+Math.cos(ang)*11, 18+Math.sin(ang)*11, 10, 16); }
   g.fillStyle(0xff8800, 1); g.fillCircle(18,18,7); g.fillStyle(0xffee55,0.7); g.fillCircle(16,16,3);
-  g.generateTexture('l4_bloom_y', 36, 58);
+  gen('l4_bloom_y', 36, 58);
 
   // Bloomed plant — purple
   g.clear();
@@ -338,7 +340,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0xcc44ff, 1);
   for (let a=0; a<6; a++) { const ang=(a/6)*Math.PI*2; g.fillEllipse(18+Math.cos(ang)*10, 18+Math.sin(ang)*10, 11, 17); }
   g.fillStyle(0xffcc22, 1); g.fillCircle(18,18,6); g.fillStyle(0xffee88,0.7); g.fillCircle(16,16,3);
-  g.generateTexture('l4_bloom_p', 36, 58);
+  gen('l4_bloom_p', 36, 58);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // PHASE 3 — PARTY ITEMS
@@ -355,7 +357,7 @@ export function generateL4Assets(scene) {
   g.lineStyle(1, 0x555555, 0.6);
   g.lineBetween(10,30,26,72); g.lineBetween(26,22,26,72); g.lineBetween(42,34,26,72);
   g.fillStyle(0x888888, 0.8); g.fillCircle(26,72,4);
-  g.generateTexture('l4_balloon', 52, 80);
+  gen('l4_balloon', 52, 80);
 
   // Cake (78 × 80)
   g.clear();
@@ -368,7 +370,7 @@ export function generateL4Assets(scene) {
     g.fillStyle(cc,1); g.fillRect(cx-2,cy,4,14);
     g.fillStyle(0xffee44,1); g.fillEllipse(cx,cy,6,9); g.fillStyle(0xff8800,0.8); g.fillEllipse(cx,cy+2,4,6);
   });
-  g.generateTexture('l4_cake', 78, 80);
+  gen('l4_cake', 78, 80);
 
   // Party Banner (128 × 38)
   g.clear();
@@ -380,7 +382,7 @@ export function generateL4Assets(scene) {
     g.fillStyle(bc,1); g.fillTriangle(bx,by,bx+12,by,bx+6,by+22);
     g.fillStyle(0xffffff,0.2); g.fillTriangle(bx,by,bx+6,by,bx+3,by+12);
   });
-  g.generateTexture('l4_party_banner', 128, 38);
+  gen('l4_party_banner', 128, 38);
 
   // Gift Box (62 × 66)
   g.clear();
@@ -394,7 +396,7 @@ export function generateL4Assets(scene) {
   g.fillStyle(0xff2266,1); g.fillEllipse(22,20,18,12); g.fillEllipse(40,20,18,12);
   g.fillStyle(0xff4488,0.6); g.fillEllipse(20,18,10,7); g.fillEllipse(42,18,10,7);
   g.fillStyle(0xff2266,1); g.fillCircle(31,20,6);
-  g.generateTexture('l4_gift', 62, 66);
+  gen('l4_gift', 62, 66);
 
   // ══════════════════════════════════════════════════════════════════════════════
   // UI ELEMENTS
@@ -405,27 +407,27 @@ export function generateL4Assets(scene) {
     g.fillStyle(0xffffff,1); g.fillTriangle(16,0,13,13,19,13); g.fillTriangle(16,32,13,19,19,19);
     g.fillTriangle(0,16,13,13,13,19); g.fillTriangle(32,16,19,13,19,19);
     g.fillStyle(0xffffaa,0.7); g.fillTriangle(16,5,14,14,18,14); g.fillTriangle(16,27,14,18,18,18);
-    g.generateTexture('l4_sparkle', 32, 32);
+    gen('l4_sparkle', 32, 32);
   }
   if (!scene.textures.exists('l4_hint_bulb')) {
     g.clear();
     g.fillStyle(0xffee44,1); g.fillCircle(20,17,15); g.fillStyle(0xffffff,0.45); g.fillCircle(14,11,7);
     g.fillStyle(0xaa8800,1); g.fillRect(14,31,12,5); g.fillRect(15,35,10,4);
     g.lineStyle(1, 0x886600, 0.6); g.lineBetween(14,31,26,31); g.lineBetween(15,33,25,33);
-    g.generateTexture('l4_hint_bulb', 40, 40);
+    gen('l4_hint_bulb', 40, 40);
   }
   if (!scene.textures.exists('l4_coin')) {
     g.clear();
     g.fillStyle(0xf5c84a,1); g.fillCircle(12,12,11); g.fillStyle(0xfde880,0.7); g.fillCircle(9,9,6);
     g.lineStyle(2, 0xd4a020,1); g.strokeCircle(12,12,11);
-    g.generateTexture('l4_coin', 24, 24);
+    gen('l4_coin', 24, 24);
   }
   if (!scene.textures.exists('l4_diamond')) {
     g.clear();
     g.fillStyle(0x44ccff,1); g.fillTriangle(12,2,2,10,12,22); g.fillTriangle(12,2,22,10,12,22);
     g.fillStyle(0x88eeff,0.5); g.fillTriangle(12,2,6,10,16,10);
     g.lineStyle(1, 0x22aaee,0.6); g.strokeTriangle(12,2,2,10,12,22); g.strokeTriangle(12,2,22,10,12,22);
-    g.generateTexture('l4_diamond', 24, 24);
+    gen('l4_diamond', 24, 24);
   }
 
   g.destroy();
@@ -435,8 +437,12 @@ export function generateL4Assets(scene) {
 // STREET / COLLECT-LEVEL TEXTURES  (items, obstacles, neighbourhood props)
 // ══════════════════════════════════════════════════════════════════════════════
 export function generateL4StreetAssets(scene) {
-  if (scene.textures.exists('l4_wood')) return;
+  // Guard on a key that's never loaded as a real image, so this still runs to
+  // create the few procedural-only textures (l4_homesign, l4_star).
+  if (scene.textures.exists('l4_homesign')) return;
   const g = scene.make.graphics({ add: false });
+  // Only generate if a real image wasn't already loaded under that key
+  const gen = (k, w, h) => { if (!scene.textures.exists(k)) g.generateTexture(k, w, h); };
 
   // ── ITEM: Wood Planks (60×34) ──────────────────────────────────────────────
   g.clear();
@@ -446,7 +452,7 @@ export function generateL4StreetAssets(scene) {
     g.fillStyle(0x7a4e1e, 0.5); g.fillRect(4, y + 7, 52, 2);
     g.lineStyle(1, 0x5a3a12, 0.4); g.strokeRoundedRect(2, y, 56, 9, 2);
   }
-  g.generateTexture('l4_wood', 60, 36);
+  gen('l4_wood', 60, 36);
 
   // ── ITEM: Roof Panel (60×36) red tiles ─────────────────────────────────────
   g.clear();
@@ -455,7 +461,7 @@ export function generateL4StreetAssets(scene) {
     g.fillRoundedRect(2 + c * 12, 2 + r * 11, 11, 10, 3);
     g.fillStyle(0xe05a44, 0.4); g.fillRect(3 + c * 12, 3 + r * 11, 9, 3);
   }
-  g.generateTexture('l4_roof', 60, 36);
+  gen('l4_roof', 60, 36);
 
   // ── ITEM: Nails Box (54×46) ────────────────────────────────────────────────
   g.clear();
@@ -466,7 +472,7 @@ export function generateL4StreetAssets(scene) {
   g.fillStyle(0xb8b8c0, 1);
   [10, 20, 30, 40].forEach((nx, i) => { g.fillRect(nx, 6 - (i % 2) * 3, 3, 12); g.fillCircle(nx + 1.5, 6 - (i % 2) * 3, 3); });
   g.lineStyle(1.5, 0x2e4a18, 0.7); g.strokeRoundedRect(2, 14, 50, 30, 4);
-  g.generateTexture('l4_nails', 54, 48);
+  gen('l4_nails', 54, 48);
 
   // ── ITEM: Paint Bucket (48×54) ─────────────────────────────────────────────
   g.clear();
@@ -478,7 +484,7 @@ export function generateL4StreetAssets(scene) {
   g.lineStyle(2, 0x7a7e84, 0.8); g.strokeRoundedRect(6, 14, 36, 36, 4);
   // drip
   g.fillStyle(0x7e1f6b, 1); g.fillRect(40, 24, 4, 14); g.fillCircle(42, 38, 3);
-  g.generateTexture('l4_paint', 48, 56);
+  gen('l4_paint', 48, 56);
 
   // ── OBSTACLE: Traffic Cone (40×46) ─────────────────────────────────────────
   g.clear();
@@ -487,7 +493,7 @@ export function generateL4StreetAssets(scene) {
   g.fillStyle(0xffffff, 1); g.fillTriangle(20, 14, 14, 26, 26, 26);
   g.fillStyle(0xe8621f, 1); g.fillTriangle(20, 18, 16.5, 26, 23.5, 26);
   g.fillStyle(0xd4541a, 1); g.fillRoundedRect(2, 40, 36, 6, 2);
-  g.generateTexture('l4_cone', 40, 48);
+  gen('l4_cone', 40, 48);
 
   // ── OBSTACLE: Trash Bin (44×56) ────────────────────────────────────────────
   g.clear();
@@ -497,7 +503,7 @@ export function generateL4StreetAssets(scene) {
   g.lineStyle(1, 0x205a32, 0.6); for (let i = 1; i < 4; i++) g.lineBetween(6 + i * 8, 12, 6 + i * 8, 54);
   g.fillStyle(0x256b3b, 1); g.fillRoundedRect(2, 6, 40, 9, 3);   // lid
   g.fillStyle(0x1a4d2a, 1); g.fillRect(18, 2, 8, 5);             // handle
-  g.generateTexture('l4_bin', 44, 58);
+  gen('l4_bin', 44, 58);
 
   // ── OBSTACLE: Cardboard Boxes (62×52) ──────────────────────────────────────
   g.clear();
@@ -509,7 +515,7 @@ export function generateL4StreetAssets(scene) {
     g.lineStyle(1.5, 0x8a6630, 0.5); g.lineBetween(x + w / 2, y, x + w / 2, y + h);
   };
   box(4, 22, 30, 28); box(34, 18, 24, 32); box(16, 4, 26, 20);
-  g.generateTexture('l4_boxes', 62, 52);
+  gen('l4_boxes', 62, 52);
 
   // ── OBSTACLE: Bicycle (74×48) ──────────────────────────────────────────────
   g.clear();
@@ -519,21 +525,21 @@ export function generateL4StreetAssets(scene) {
   g.lineStyle(3, 0x2266cc, 1); g.lineBetween(16, 32, 38, 32); g.lineBetween(38, 32, 30, 14); g.lineBetween(30, 14, 58, 32); g.lineBetween(38, 32, 50, 14); g.lineBetween(50, 14, 58, 32);
   g.fillStyle(0x111111, 1); g.fillRoundedRect(26, 11, 12, 4, 2);  // seat
   g.lineStyle(3, 0x111111, 1); g.lineBetween(50, 14, 56, 8); g.lineBetween(54, 8, 60, 10); // handle
-  g.generateTexture('l4_bike', 74, 50);
+  gen('l4_bike', 74, 50);
 
   // ── OBSTACLE: Water Puddle (76×22) ─────────────────────────────────────────
   g.clear();
   g.fillStyle(0x3a6a9a, 0.55); g.fillEllipse(38, 12, 72, 18);
   g.fillStyle(0x5a8ec0, 0.45); g.fillEllipse(36, 10, 56, 12);
   g.fillStyle(0xbfe0ff, 0.4); g.fillEllipse(26, 8, 20, 5);
-  g.generateTexture('l4_puddle', 76, 22);
+  gen('l4_puddle', 76, 22);
 
   // ── OBSTACLE: Pothole (66×24) ──────────────────────────────────────────────
   g.clear();
   g.fillStyle(0x0a0a0a, 1); g.fillEllipse(33, 12, 62, 20);
   g.fillStyle(0x1e1e1e, 1); g.fillEllipse(33, 10, 50, 14);
   g.lineStyle(2, 0x3a3a3a, 0.6); g.strokeEllipse(33, 12, 62, 20);
-  g.generateTexture('l4_pothole', 66, 24);
+  gen('l4_pothole', 66, 24);
 
   // ── BG: House (180×170) — tintable ─────────────────────────────────────────
   g.clear();
@@ -547,13 +553,13 @@ export function generateL4StreetAssets(scene) {
   g.lineStyle(2, 0xffffff, 0.8); g.strokeRect(36, 92, 30, 28); g.strokeRect(114, 92, 30, 28);
   g.lineBetween(51, 92, 51, 120); g.lineBetween(36, 106, 66, 106);
   g.lineBetween(129, 92, 129, 120); g.lineBetween(114, 106, 144, 106);
-  g.generateTexture('l4_house', 180, 172);
+  gen('l4_house', 180, 172);
 
   // ── BG: Bush (64×40) ───────────────────────────────────────────────────────
   g.clear();
   g.fillStyle(0x2f7d3a, 1); g.fillEllipse(20, 26, 36, 30); g.fillEllipse(44, 24, 40, 32); g.fillEllipse(32, 16, 30, 26);
   g.fillStyle(0x3c9a49, 0.7); g.fillEllipse(24, 18, 18, 12); g.fillEllipse(42, 18, 16, 10);
-  g.generateTexture('l4_bush', 64, 42);
+  gen('l4_bush', 64, 42);
 
   // ── BG: Street Lamp (26×96) ────────────────────────────────────────────────
   g.clear();
@@ -562,14 +568,14 @@ export function generateL4StreetAssets(scene) {
   g.fillStyle(0x3a3f4a, 1); g.fillRect(11, 14, 12, 4);
   g.fillStyle(0xffe9a8, 1); g.fillRoundedRect(18, 8, 8, 12, 3);
   g.fillStyle(0xfff4cc, 0.5); g.fillCircle(22, 14, 8);
-  g.generateTexture('l4_lamp', 28, 98);
+  gen('l4_lamp', 28, 98);
 
   // ── HOME arrow sign (96×46) ────────────────────────────────────────────────
   g.clear();
   g.fillStyle(0x8a5a28, 1); g.fillRect(6, 30, 6, 16);
   g.fillStyle(0xe0a23c, 1); g.fillRoundedRect(2, 6, 74, 26, 5); g.fillTriangle(76, 6, 94, 19, 76, 32);
   g.lineStyle(2, 0x9a6a20, 0.9); g.strokeRoundedRect(2, 6, 74, 26, 5);
-  g.generateTexture('l4_homesign', 96, 46);
+  gen('l4_homesign', 96, 46);
 
   // ── Star collectable (28×28) ───────────────────────────────────────────────
   g.clear();
@@ -578,7 +584,7 @@ export function generateL4StreetAssets(scene) {
   for (let i = 0; i < 10; i++) { const ang = -Math.PI / 2 + i * Math.PI / 5; const rad = i % 2 ? r : R; pts.push(sx + Math.cos(ang) * rad, sy + Math.sin(ang) * rad); }
   g.fillStyle(0xffd33a, 1); g.fillPoints(pts.reduce((a, v, i) => { if (i % 2 === 0) a.push({ x: v, y: pts[i + 1] }); return a; }, []), true);
   g.fillStyle(0xfff0a0, 0.6); g.fillCircle(11, 10, 3);
-  g.generateTexture('l4_star', 28, 28);
+  gen('l4_star', 28, 28);
 
   g.destroy();
 }
